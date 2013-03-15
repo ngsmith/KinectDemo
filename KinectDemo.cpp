@@ -1817,9 +1817,9 @@ Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1,0,0),rotDegrees[1], osg::Vec3d(
 void KinectDemo::sendEvents()
 {
     cerr << "Sending Event\n";
-    TrackingManager * tConfig = TrackingManager::instance();
+  /*  TrackingManager * tConfig = TrackingManager::instance();
     TrackerPlugin::TrackerPlugin* _trackerSystem;
-    
+   //helo 
     cerr << "Total Tracking Systems=" << tConfig->getNumTrackingSystems() << "\n";
     for (int i=1; i < tConfig->getNumTrackingSystems(); i++)
     {
@@ -1889,7 +1889,7 @@ void KinectDemo::sendEvents()
         //    _trackerSystem->setButton(0,false); 
          } 
     }
-
+*/
     cerr << "Finised\n";
 }
 

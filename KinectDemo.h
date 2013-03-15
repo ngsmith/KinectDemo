@@ -18,7 +18,7 @@
 #include <cvrMenu/MenuRangeValueCompact.h>
 #include <cvrMenu/TabbedDialogPanel.h>
 
-#include <cvrInput/TrackerPlugin.h>
+//#include <cvrInput/TrackerPlugin.h>
 #include "Skeleton.h"
 //#include "PubSub.h"
 #include <shared/PubSub.h>
