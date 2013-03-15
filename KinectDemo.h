@@ -102,22 +102,22 @@ public:
     osg::Group* kinectgrp;
     float initialPointScale;
 
-struct PointCloud
-{
-	string name;
-	string filename;
+    struct PointCloud
+    {
+        string name;
+        string filename;
         string fullpath;
         string filetype;
         string modelType;
         string group;
-        float scale; 
+        float scale;
         osg::Vec3 pos;
         osg::Quat rot;
         osg::Vec3 origPos;
         osg::Quat origRot;
         float origScale;
-        cvr::SceneObject * so;
-	bool loaded;
+        cvr::SceneObject* so;
+        bool loaded;
         bool active;
         bool visible;
         bool selected;
@@ -125,8 +125,8 @@ struct PointCloud
         bool lockRot;
         bool lockScale;
         bool lockGraph;
-    int lockedTo;
-    int lockedType;
+        int lockedTo;
+        int lockedType;
         cvr::MenuButton* saveMap;
         cvr::MenuButton* saveNewMap;
         cvr::MenuButton* resetMap;
@@ -135,13 +135,13 @@ struct PointCloud
         cvr::MenuRangeValue* rxMap;
         cvr::MenuRangeValue* ryMap;
         cvr::MenuRangeValue* rzMap;
-	//Store Different Model Type Transforms
+        //Store Different Model Type Transforms
         osg::Node* currentModelNode;
-	osg::Switch* switchNode;
+        osg::Switch* switchNode;
 
 
-};
- 
+    };
+
     std::vector<PointCloud* > _pointClouds;
     std::vector<SelectableItem> selectableItems;
     void createSceneObject();
@@ -204,8 +204,8 @@ struct PointCloud
 
     osg::ref_ptr<osg::Vec4Array> kinectColours;
     osg::ref_ptr<osg::Vec3Array> kinectVertices;
-    CloudManager * _cloudThread;
-   // SkeletonManager * _skeletonThread;
+    CloudManager* _cloudThread;
+    // SkeletonManager * _skeletonThread;
 protected:
 
     static KinectDemo* _kinectDemo;

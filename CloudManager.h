@@ -29,27 +29,27 @@
 #include <OpenThreads/Thread>
 
 
-//	zmq::context_t contextCloud(1);
+//  zmq::context_t contextCloud(1);
 
 class CloudManager : public OpenThreads::Thread {
 
-    public:
+public:
 
-	CloudManager();
-        ~CloudManager();
-	//contextCloud(1);
-        SubSocket<RemoteKinect::PointCloud>* cloudT_socket;
-        void update();
-        bool isCacheDone();
-        RemoteKinect::PointCloud* packet;
+    CloudManager();
+    ~CloudManager();
+    //contextCloud(1);
+    SubSocket<RemoteKinect::PointCloud>* cloudT_socket;
+    void update();
+    bool isCacheDone();
+    RemoteKinect::PointCloud* packet;
 
-        virtual void run();
-        void quit();
-    protected:
+    virtual void run();
+    void quit();
+protected:
 
-       // osg::ref_ptr<osg::Vec4Array> kinectColours;
-       // osg::ref_ptr<osg::Vec3Array> kinectVertices;
-        bool _cacheDone;
+    // osg::ref_ptr<osg::Vec4Array> kinectColours;
+    // osg::ref_ptr<osg::Vec3Array> kinectVertices;
+    bool _cacheDone;
     bool useKColor;
     bool should_quit;
     osg::Program* pgm1;
