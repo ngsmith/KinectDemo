@@ -104,6 +104,27 @@ bool KinectDemo::init()
     _avMenu->addItem(_kNavSpheres);
     _avMenu->addItem(_kShowInfoPanel);
     MenuSystem::instance()->addMenuItem(_avMenu);
+    _devMenu = new SubMenu("Dev options", "Dev options");
+    _devMenu->setCallback(this);
+    _devFixXY = new MenuCheckbox("Fix XY", fixXY);
+    _devIgnoreZeros = new MenuCheckbox("Ignore 0s", ignoreZeros);
+    _devFilterBackground = new MenuCheckbox("Filter background", filterBackground);
+    _devAssignPointsToSkeletons = new MenuCheckbox("Assign points to skeletons", assignPointsToSkeletons);
+    _devClassifyPoints = new MenuCheckbox("Classify points", classifyPoints);
+    _devDenoise = new MenuCheckbox("Denoise (mode)", denoise);
+    _devFixXY->setCallback(this);
+    _devIgnoreZeros->setCallback(this);
+    _devFilterBackground->setCallback(this);
+    _devAssignPointsToSkeletons->setCallback(this);
+    _devClassifyPoints->setCallback(this);
+    _devDenoise->setCallback(this);
+    _devMenu->addItem(_devFixXY);
+    _devMenu->addItem(_devIgnoreZeros);
+    _devMenu->addItem(_devFilterBackground);
+    _devMenu->addItem(_devAssignPointsToSkeletons);
+    _devMenu->addItem(_devClassifyPoints);
+    _devMenu->addItem(_devDenoise);
+    _avMenu->addItem(_devMenu);
     SceneManager::instance()->getObjectsRoot()->addChild(_root);
 
     if (useKinect) kinectInit();
@@ -554,6 +575,11 @@ void KinectDemo::kinectInit()
     //bang
     kinectThreaded = ConfigManager::getBool("Plugin.KinectDemo.KinectDefaultOn.KinectThreaded");
     skeletonThreaded = false;
+    fixXY = false;
+    ignoreZeros = false;
+    filterBackground = false;
+    assignPointsToSkeletons = false;
+    classifyPoints = false;
 
     if (!kinectThreaded)
     {
@@ -689,9 +715,93 @@ void KinectDemo::kinectInit()
     cout << endl << endl;
     ThirdInit();
     kinectInitialized = true;
+    NPIX = 307201;
+    NFRAMES = 10;
+    environmentX = (float*)malloc(NPIX * sizeof(float));
+    environmentY = (float*)malloc(NPIX * sizeof(float));
+    environmentZ = (float*)malloc(NPIX * sizeof(float));
+    X = (float*)malloc(NPIX * sizeof(float));
+    Y = (float*)malloc(NPIX * sizeof(float));
+    Z = (float*)malloc(NPIX * sizeof(float));
+    frameXMinus = (float**)malloc(NFRAMES * sizeof(float*));
+
+    for (int i = 0; i < NFRAMES; i++)
+    {
+        frameXMinus[i] = (float*)malloc(NPIX * sizeof(float));
+    }
+
+    frameYMinus = (float**)malloc(NFRAMES * sizeof(float*));
+
+    for (int i = 0; i < NFRAMES; i++)
+    {
+        frameYMinus[i] = (float*)malloc(NPIX * sizeof(float));
+    }
+
+    frameZMinus = (float**)malloc(NFRAMES * sizeof(float*));
+
+    for (int i = 0; i < NFRAMES; i++)
+    {
+        frameZMinus[i] = (float*)malloc(NPIX * sizeof(float));
+    }
+
+    saveEnvironment();
 }
 
+// saves environment in environmentX,Y,Z - mean over 100 frames ignoring zeros
+void KinectDemo::saveEnvironment()
+{
+    for (int i = 0; i < NPIX; i++)
+        environmentX[i] = environmentY[i] = environmentZ[i] = 0;
 
+    cloud_socket = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
+    packet = new RemoteKinect::PointCloud();
+    int nframes = 100;
+    int cntx = 0;
+    int cnty = 0;
+    int cntz = 0;
+
+    for (int i = 0; i < nframes; i++)
+    {
+        if (cloud_socket->recv(*packet))
+        {
+            for (int i = 0; i < packet->points_size(); i++)
+            {
+                float x = packet->points(i).x();
+                float y = packet->points(i).z();
+                float z = packet->points(i).y();
+
+                if (x != 0)
+                {
+                    environmentX[i] += x;
+                    cntx++;
+                }
+
+                if (y != 0)
+                {
+                    environmentY[i] += y;
+                    cnty++;
+                }
+
+                if (z != 0)
+                {
+                    environmentZ[i] += z;
+                    cntz++;
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < NPIX; i++)
+    {
+        environmentX[i] /= cntx;
+        environmentY[i] /= cnty;
+        environmentZ[i] /= cntz;
+    }
+
+    delete cloud_socket;
+    cloud_socket = NULL;
+    cout << "Environment captured" << endl;
+}
 
 void KinectDemo::createSelObj(osg::Vec3 pos, string color, float scalenumber, osg::Node* model)
 {
@@ -721,6 +831,102 @@ void KinectDemo::createSelObj(osg::Vec3 pos, string color, float scalenumber, os
     selectableItems.push_back(SelectableItem(boxGeode, modelScaleTrans, translate, rotate, snum));
 }
 
+void KinectDemo::showPointCloud()
+{
+    //  cerr << ".";
+    float r, g, b, a;
+    kinectVertices = new osg::Vec3Array;
+    kinectVertices->empty();
+    osg::Vec3Array* normals = new osg::Vec3Array;
+    kinectColours = new osg::Vec4Array;
+    kinectColours->empty();
+
+    if (cloud_socket->recv(*packet))
+    {
+        for (int i = 0; i < packet->points_size(); i++)
+        {
+            float x = packet->points(i).x();
+            float y = packet->points(i).z();
+            float z = packet->points(i).y();
+            X[i] = x;
+            Y[i] = y;
+            Z[i] = z;
+            osg::Vec3 ppos(X[i] + Skeleton::camPos.x(),
+                           Y[i] + Skeleton::camPos.y(),
+                           Z[i] + Skeleton::camPos.z());
+            kinectVertices->push_back(ppos);
+
+            if (useKColor)
+            {
+                r = (packet->points(i).r() / 255.);
+                g = (packet->points(i).g() / 255.);
+                b = (packet->points(i).b() / 255.);
+                a = 1;
+                kinectColours->push_back(osg::Vec4f(r, g, b, a));
+            }
+            else
+            {
+                kinectColours->push_back(getColorRGB(packet->points(i).z()));
+            }
+
+            for (int j = NFRAMES; j > 0; j--)
+            {
+                frameXMinus[j][i] = frameXMinus[j - 1][i];
+                frameYMinus[j][i] = frameYMinus[j - 1][i];
+                frameZMinus[j][i] = frameZMinus[j - 1][i];
+            }
+
+            frameXMinus[0][i] = x;
+            frameYMinus[0][i] = y;
+            frameZMinus[0][i] = z;
+        }
+
+        if (true)
+        {
+            osg::Geode* kgeode = new osg::Geode();
+            kgeode->setCullingActive(false);
+            osg::Geometry* nodeGeom = new osg::Geometry();
+            osg::StateSet* state = nodeGeom->getOrCreateStateSet();
+            state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+            nodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices->size()));
+            osg::VertexBufferObject* vboP = nodeGeom->getOrCreateVertexBufferObject();
+            vboP->setUsage(GL_STREAM_DRAW);
+            nodeGeom->setUseDisplayList(false);
+            nodeGeom->setUseVertexBufferObjects(true);
+            nodeGeom->setVertexArray(kinectVertices);
+            nodeGeom->setColorArray(kinectColours);
+            nodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+            kgeode->addDrawable(nodeGeom);
+            kgeode->dirtyBound();
+            //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
+            kinectgrp->removeChild(0, 1);
+            kinectgrp->addChild(kgeode);
+        }
+        else
+        {
+            osg::Geode* kgeode = new osg::Geode();
+            kgeode->setCullingActive(false);
+            osg::Geometry* geometry = new osg::Geometry();
+            geometry->setUseDisplayList(false);
+            geometry->setUseVertexBufferObjects(true);
+            // geometry->setVertexArray(kinectVertices);
+            geometry->setVertexArray(kinectVertices);
+            geometry->setNormalArray(normals);
+            geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
+            geometry->setColorArray(kinectColours);
+            geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+            geometry->addPrimitiveSet(new osg::DrawArrays(GL_POINTS, 0, kinectVertices->size()));
+            //_root->removeChild(pointGeode);
+            //pointGeode = new Geode();
+            StateSet* ss = kgeode->getOrCreateStateSet();
+            ss->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+            kgeode->addDrawable(geometry);
+            kinectgrp->removeChild(0, 1);
+            kinectgrp->addChild(kgeode);
+            //_root->addChild(pointGeode);
+        }
+    }
+}
 
 void KinectDemo::ThirdLoop()
 {
@@ -816,90 +1022,7 @@ void KinectDemo::ThirdLoop()
 
     if (kShowPCloud && cloud_socket != NULL && !kinectThreaded && !kFreezeCloud)
     {
-        //  cerr << ".";
-        float r, g, b, a;
-        kinectVertices = new osg::Vec3Array;
-        kinectVertices->empty();
-        osg::Vec3Array* normals = new osg::Vec3Array;
-        osg::Vec4Array* kinectColours = new osg::Vec4Array;
-        kinectColours->empty();
-
-        if (cloud_socket->recv(*packet))
-        {
-            for (int i = 0; i < packet->points_size(); i++)
-            {
-                osg::Vec3 ppos(packet->points(i).x() + Skeleton::camPos.x(),
-                               packet->points(i).z() + Skeleton::camPos.y(),
-                               packet->points(i).y() + Skeleton::camPos.z());
-
-                // ppos *= 0.0001;
-                if (i == 200000)
-                {
-                    // cerr << "Y=" << ppos.y() << endl;
-                }
-
-                kinectVertices->push_back(ppos);
-
-                if (useKColor)
-                {
-                    r = (packet->points(i).r() / 255.);
-                    g = (packet->points(i).g() / 255.);
-                    b = (packet->points(i).b() / 255.);
-                    a = 1;
-                    kinectColours->push_back(osg::Vec4f(r, g, b, a));
-                    //kinectColours->push_back(osg::Vec4(1.0f,1.0f,0.0f,1.0f));
-                }
-                else
-                {
-                    kinectColours->push_back(getColorRGB(packet->points(i).z()));
-                }
-            }
-
-            if (true)
-            {
-                osg::Geode* kgeode = new osg::Geode();
-                kgeode->setCullingActive(false);
-                osg::Geometry* nodeGeom = new osg::Geometry();
-                osg::StateSet* state = nodeGeom->getOrCreateStateSet();
-                state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-                nodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices->size()));
-                osg::VertexBufferObject* vboP = nodeGeom->getOrCreateVertexBufferObject();
-                vboP->setUsage(GL_STREAM_DRAW);
-                nodeGeom->setUseDisplayList(false);
-                nodeGeom->setUseVertexBufferObjects(true);
-                nodeGeom->setVertexArray(kinectVertices);
-                nodeGeom->setColorArray(kinectColours);
-                nodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-                kgeode->addDrawable(nodeGeom);
-                kgeode->dirtyBound();
-                //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
-                kinectgrp->removeChild(0, 1);
-                kinectgrp->addChild(kgeode);
-            }
-            else
-            {
-                osg::Geode* kgeode = new osg::Geode();
-                kgeode->setCullingActive(false);
-                osg::Geometry* geometry = new osg::Geometry();
-                geometry->setUseDisplayList(false);
-                geometry->setUseVertexBufferObjects(true);
-                // geometry->setVertexArray(kinectVertices);
-                geometry->setVertexArray(kinectVertices);
-                geometry->setNormalArray(normals);
-                geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
-                geometry->setColorArray(kinectColours);
-                geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-                geometry->addPrimitiveSet(new osg::DrawArrays(GL_POINTS, 0, kinectVertices->size()));
-                //_root->removeChild(pointGeode);
-                //pointGeode = new Geode();
-                StateSet* ss = kgeode->getOrCreateStateSet();
-                ss->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-                kgeode->addDrawable(geometry);
-                kinectgrp->removeChild(0, 1);
-                kinectgrp->addChild(kgeode);
-                //_root->addChild(pointGeode);
-            }
-        }
+        showPointCloud();
     }
 
     if (kShowColor && false)
@@ -1375,32 +1498,36 @@ void KinectDemo::updateInfoPanel()
 void KinectDemo::ExportPointCloud()
 {
     printf("Triggered\n");
-    osg::Vec3Array* vertices = kinectVertices;
-    osg::Vec4Array* colours = kinectColours;
-    FILE* pFile;
-    string file = ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("kinectDump.ply");
-    pFile = fopen(file.c_str(), "w");
-    fprintf(pFile, "ply\nformat ascii 1.0\ncomment VCGLIB generated\n");
-    fprintf(pFile, "element vertex %i\n", vertices->size());
-    fprintf(pFile, "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\nproperty uchar alpha\nelement face 0\nproperty list uchar int vertex_indices\nend_header\n");
 
-    for (int i = 0; i < vertices->size() ; i++)
+    if (cvr::ComController::instance()->isMaster())
     {
-        double x = vertices->at(i).x(); // * 1000;
-        double y = vertices->at(i).y();// * 1000;
-        double z = vertices->at(i).z();//* 1000;
-        double r = colours->at(i).r() * 255;
-        double g = colours->at(i).g() * 255;
-        double b = colours->at(i).b() * 255;
-        double a = colours->at(i).a();
-        int ri = int (r);
-        int gi = int (g);
-        int bi = int (b);
-        int ai = int (a);
-        fprintf(pFile, "%f %f %f %i %i %i %i\n", x, y, z, ri, gi, bi, ai);
-    }
+        osg::Vec3Array* vertices = kinectVertices;
+        osg::Vec4Array* colours = kinectColours;
+        FILE* pFile;
+        string file = ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("kinectDump.ply");
+        pFile = fopen(file.c_str(), "w");
+        fprintf(pFile, "ply\nformat ascii 1.0\ncomment VCGLIB generated\n");
+        fprintf(pFile, "element vertex %i\n", vertices->size());
+        fprintf(pFile, "property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\nproperty uchar alpha\nelement face 0\nproperty list uchar int vertex_indices\nend_header\n");
 
-    fclose(pFile);
+        for (int i = 0; i < vertices->size() && i < colours->size() ; i++)
+        {
+            double x = vertices->at(i).x(); // * 1000;
+            double y = vertices->at(i).y();// * 1000;
+            double z = vertices->at(i).z();//* 1000;
+            double r = colours->at(i).r() * 255;
+            double g = colours->at(i).g() * 255;
+            double b = colours->at(i).b() * 255;
+            double a = colours->at(i).a();
+            int ri = (int)(r);
+            int gi = (int)(g);
+            int bi = (int)(b);
+            int ai = (int)(a);
+            fprintf(pFile, "%f %f %f %i %i %i %i\n", x, y, z, ri, gi, bi, ai);
+        }
+
+        fclose(pFile);
+    }
 }
 void KinectDemo::createSceneObject()
 {

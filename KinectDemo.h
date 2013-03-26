@@ -17,6 +17,7 @@
 #include <cvrMenu/MenuRangeValue.h>
 #include <cvrMenu/MenuRangeValueCompact.h>
 #include <cvrMenu/TabbedDialogPanel.h>
+#include <cvrKernel/ComController.h>
 
 //#include <cvrInput/TrackerPlugin.h>
 #include "Skeleton.h"
@@ -41,6 +42,7 @@ using namespace cvr;
 #define M_RHAND 15
 #define M_LFOOT 20
 #define M_RFOOT 24
+
 
 std::map<int, Skeleton> mapIdSkel;
 std::unordered_map<float, osg::Vec4f> distanceColorMap;
@@ -164,7 +166,6 @@ public:
     osg::Vec4f getColorRGB(int dist);
     osg::Vec4f getColorRGBDepth(int dist);
 
-
     void cloudOff();
     void navOff();
     void navOn();
@@ -179,6 +180,8 @@ public:
 
     void showCameraImage();
     void showDepthImage();
+
+    void saveEnvironment();
 
     //camera image things
     osg::ref_ptr<osg::MatrixTransform> bitmaptransform;
@@ -229,6 +232,33 @@ protected:
     cvr::MenuRangeValue* sliderRY;
     cvr::MenuRangeValue* sliderRZ;
     cvr::MenuRangeValue* sliderRW;
+
+    int NPIX;
+    int NFRAMES;
+    float* X;
+    float* Y;
+    float* Z;
+    float* environmentX;
+    float* environmentY;
+    float* environmentZ;
+    float** frameXMinus;
+    float** frameYMinus;
+    float** frameZMinus;
+    cvr::SubMenu* _devMenu;
+    cvr::MenuCheckbox* _devFixXY;
+    bool fixXY;
+    cvr::MenuCheckbox* _devIgnoreZeros;
+    bool ignoreZeros;
+    cvr::MenuCheckbox* _devFilterBackground;
+    bool filterBackground;
+    cvr::MenuCheckbox* _devAssignPointsToSkeletons;
+    bool assignPointsToSkeletons;
+    cvr::MenuCheckbox* _devClassifyPoints;
+    bool classifyPoints;
+    cvr::MenuCheckbox* _devDenoise;
+    bool denoise;
+
+    void showPointCloud();
 
     float distanceMIN, distanceMAX;
     cvr::MenuButton* _bookmarkLoc;
