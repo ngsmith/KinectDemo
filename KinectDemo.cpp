@@ -29,6 +29,12 @@ KinectDemo::~KinectDemo()
         cloud_socket = NULL;
     }
 
+    if (cloud_socket2)
+    {
+        delete cloud_socket2;
+        cloud_socket2 = NULL;
+    }
+
     if (color_socket)
     {
         delete color_socket;
@@ -276,6 +282,20 @@ void KinectDemo::menuCallback(MenuItem* menuItem)
     if (menuItem == sliderZ)
     {
         kinectZ = sliderZ->getValue();
+    }
+    if (menuItem == slider2X)
+    {
+        kinect2X = slider2X->getValue();
+    }
+
+    if (menuItem == slider2Y)
+    {
+        kinect2Y = slider2Y->getValue();
+    }
+
+    if (menuItem == slider2Z)
+    {
+        kinect2Z = slider2Z->getValue();
     }
 }
 
@@ -621,6 +641,15 @@ void KinectDemo::kinectInit()
         sliderZ = new MenuRangeValue("Z", -1000.0, 1000.0, kinectZ, 0.01);
         sliderZ->setCallback(this);
         _infoPanel->addMenuItem(sliderZ);
+        slider2X = new MenuRangeValue("X-2", -1000.0, 1000.0, kinectX, 0.01);
+        slider2X->setCallback(this);
+        _infoPanel->addMenuItem(slider2X);
+        slider2Y = new MenuRangeValue("Y-2", -1000.0, 1000.0, kinectY, 0.01);
+        slider2Y->setCallback(this);
+        _infoPanel->addMenuItem(slider2Y);
+        slider2Z = new MenuRangeValue("Z-2", -1000.0, 1000.0, kinectZ, 0.01);
+        slider2Z->setCallback(this);
+        _infoPanel->addMenuItem(slider2Z);
         /*
               sliderRX = new MenuRangeValue("RX",-1000.0,1000.0,kinectRX,0.01);
               sliderRX->setCallback(this);
@@ -658,21 +687,22 @@ void KinectDemo::kinectInit()
         Skeleton::navSpheres = false;
         bcounter = 0;
         _modelFileNode1 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("kinect_mm.obj"));
-        // _modelFileNode2 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("dumptruck.osg"));
-        //  _modelFileNode5 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("cessna.osg"));
-        //  _modelFileNode4 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("cow.osg"));
-        //  _modelFileNode3 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("robot.osg"));
+         _modelFileNode2 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("50563.ply"));//dumptruck.osg"));
+//          _modelFileNode5 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("cessna.osg"));
+//          _modelFileNode4 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("cow.osg"));
+//          _modelFileNode3 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("robot.osg"));
         _sphereRadius = 0.07;
         //  Group* kinectgrp = new Group();
         //  kinectgrp->addChild(_modelFileNode3);
         // createSceneObject(kinectgrp);
         // createSelObj(Vec3(-0.70,  -2.0,  0.15),   string("DD"), 0.002, _modelFileNode1);
-        // createSelObj(Vec3(-0.40,  -2.0,  0.15),   string("FD"), 0.007, _modelFileNode2);
+         createSelObj(Vec3(0.00,  3000.0,  0.0),   string("FD"), 1, _modelFileNode2);
         // createSelObj(Vec3(0,      -2.0,  0.15),   string("GD"), 0.02,  _modelFileNode3);
         //  createSelObj(Vec3(0.40,   -2.0,  0.15),   string("ED"), 0.02,  _modelFileNode4);
         //  createSelObj(Vec3(0.70,   -2.0,  0.15),   string("ZD"), 0.002, _modelFileNode5);
         //CreateSceneObject for all Kinect Data
         createSceneObject();
+        createSceneObject2();
     }
 
     minDistHSV = 700;
@@ -723,28 +753,28 @@ void KinectDemo::kinectInit()
     X = (float*)malloc(NPIX * sizeof(float));
     Y = (float*)malloc(NPIX * sizeof(float));
     Z = (float*)malloc(NPIX * sizeof(float));
-    frameXMinus = (float**)malloc(NFRAMES * sizeof(float*));
+ //   frameXMinus = (float**)malloc(NFRAMES * sizeof(float*));
 
-    for (int i = 0; i < NFRAMES; i++)
-    {
-        frameXMinus[i] = (float*)malloc(NPIX * sizeof(float));
-    }
+ //   for (int i = 0; i < NFRAMES; i++)
+ //   {
+ //       frameXMinus[i] = (float*)malloc(NPIX * sizeof(float));
+ //   }
 
-    frameYMinus = (float**)malloc(NFRAMES * sizeof(float*));
+ //   frameYMinus = (float**)malloc(NFRAMES * sizeof(float*));
 
-    for (int i = 0; i < NFRAMES; i++)
-    {
-        frameYMinus[i] = (float*)malloc(NPIX * sizeof(float));
-    }
+ //   for (int i = 0; i < NFRAMES; i++)
+ //   {
+ //       frameYMinus[i] = (float*)malloc(NPIX * sizeof(float));
+ //   }
 
-    frameZMinus = (float**)malloc(NFRAMES * sizeof(float*));
+ //   frameZMinus = (float**)malloc(NFRAMES * sizeof(float*));
 
-    for (int i = 0; i < NFRAMES; i++)
-    {
-        frameZMinus[i] = (float*)malloc(NPIX * sizeof(float));
-    }
+ //   for (int i = 0; i < NFRAMES; i++)
+ //   {
+ //       frameZMinus[i] = (float*)malloc(NPIX * sizeof(float));
+ //   }
 
-    saveEnvironment();
+//    saveEnvironment();
 }
 
 // saves environment in environmentX,Y,Z - mean over 100 frames ignoring zeros
@@ -754,6 +784,7 @@ void KinectDemo::saveEnvironment()
         environmentX[i] = environmentY[i] = environmentZ[i] = 0;
 
     cloud_socket = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
+    cloud_socket2 = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud2"));
     packet = new RemoteKinect::PointCloud();
     int nframes = 100;
     int cntx = 0;
@@ -800,6 +831,8 @@ void KinectDemo::saveEnvironment()
 
     delete cloud_socket;
     cloud_socket = NULL;
+    delete cloud_socket2;
+    cloud_socket2 = NULL;
     cout << "Environment captured" << endl;
 }
 
@@ -836,10 +869,10 @@ void KinectDemo::showPointCloud()
     //  cerr << ".";
     float r, g, b, a;
     kinectVertices = new osg::Vec3Array;
-    kinectVertices->empty();
+    //kinectVertices->empty();
     osg::Vec3Array* normals = new osg::Vec3Array;
     kinectColours = new osg::Vec4Array;
-    kinectColours->empty();
+    //kinectColours->empty();
 
     if (cloud_socket->recv(*packet))
     {
@@ -869,64 +902,124 @@ void KinectDemo::showPointCloud()
                 kinectColours->push_back(getColorRGB(packet->points(i).z()));
             }
 
-            for (int j = NFRAMES; j > 0; j--)
+//            for (int j = NFRAMES; j > 0; j--)
             {
-                frameXMinus[j][i] = frameXMinus[j - 1][i];
-                frameYMinus[j][i] = frameYMinus[j - 1][i];
-                frameZMinus[j][i] = frameZMinus[j - 1][i];
+                //               frameXMinus[j][i] = frameXMinus[j - 1][i];
+                //               frameYMinus[j][i] = frameYMinus[j - 1][i];
+                //               frameZMinus[j][i] = frameZMinus[j - 1][i];
             }
-
-            frameXMinus[0][i] = x;
-            frameYMinus[0][i] = y;
-            frameZMinus[0][i] = z;
-        }
-
-        if (true)
-        {
-            osg::Geode* kgeode = new osg::Geode();
-            kgeode->setCullingActive(false);
-            osg::Geometry* nodeGeom = new osg::Geometry();
-            osg::StateSet* state = nodeGeom->getOrCreateStateSet();
-            state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-            nodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices->size()));
-            osg::VertexBufferObject* vboP = nodeGeom->getOrCreateVertexBufferObject();
-            vboP->setUsage(GL_STREAM_DRAW);
-            nodeGeom->setUseDisplayList(false);
-            nodeGeom->setUseVertexBufferObjects(true);
-            nodeGeom->setVertexArray(kinectVertices);
-            nodeGeom->setColorArray(kinectColours);
-            nodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-            kgeode->addDrawable(nodeGeom);
-            kgeode->dirtyBound();
-            //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
-            kinectgrp->removeChild(0, 1);
-            kinectgrp->addChild(kgeode);
-        }
-        else
-        {
-            osg::Geode* kgeode = new osg::Geode();
-            kgeode->setCullingActive(false);
-            osg::Geometry* geometry = new osg::Geometry();
-            geometry->setUseDisplayList(false);
-            geometry->setUseVertexBufferObjects(true);
-            // geometry->setVertexArray(kinectVertices);
-            geometry->setVertexArray(kinectVertices);
-            geometry->setNormalArray(normals);
-            geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
-            geometry->setColorArray(kinectColours);
-            geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-            geometry->addPrimitiveSet(new osg::DrawArrays(GL_POINTS, 0, kinectVertices->size()));
-            //_root->removeChild(pointGeode);
-            //pointGeode = new Geode();
-            StateSet* ss = kgeode->getOrCreateStateSet();
-            ss->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-            kgeode->addDrawable(geometry);
-            kinectgrp->removeChild(0, 1);
-            kinectgrp->addChild(kgeode);
-            //_root->addChild(pointGeode);
         }
     }
+
+    if (true)
+    {
+        osg::Geode* kgeode = new osg::Geode();
+        kgeode->setCullingActive(false);
+        osg::Geometry* nodeGeom = new osg::Geometry();
+        osg::StateSet* state = nodeGeom->getOrCreateStateSet();
+        state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+        nodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices->size()));
+        osg::VertexBufferObject* vboP = nodeGeom->getOrCreateVertexBufferObject();
+        vboP->setUsage(GL_STREAM_DRAW);
+        nodeGeom->setUseDisplayList(false);
+        nodeGeom->setUseVertexBufferObjects(true);
+        nodeGeom->setVertexArray(kinectVertices);
+        nodeGeom->setColorArray(kinectColours);
+        nodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+        kgeode->addDrawable(nodeGeom);
+        kgeode->dirtyBound();
+        //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
+        kinectgrp->removeChild(0, 1);
+        kinectgrp->addChild(kgeode);
+    }
+
+    kinectVertices2 = new osg::Vec3Array;
+    //kinectVertices->empty();
+    normals = new osg::Vec3Array;
+    kinectColours2 = new osg::Vec4Array;
+    //kinectColours2->empty();
+
+    if (cloud_socket2->recv(*packet))
+    {
+        for (int i = 0; i < packet->points_size(); i++)
+        {
+            float x = packet->points(i).x();
+            float y = packet->points(i).z();
+            float z = packet->points(i).y();
+            X[i] = x;
+            Y[i] = y;
+            Z[i] = z;
+            osg::Vec3 ppos(X[i] + Skeleton::camPos2.x(),
+                           Y[i] + Skeleton::camPos2.y(),
+                           Z[i] + Skeleton::camPos2.z());
+            kinectVertices2->push_back(ppos);
+
+            if (useKColor)
+            {
+                r = (packet->points(i).r() / 255.);
+                g = (packet->points(i).g() / 255.);
+                b = (packet->points(i).b() / 255.);
+                a = 1;
+                kinectColours2->push_back(osg::Vec4f(r, g, b, a));
+            }
+            else
+            {
+                kinectColours2->push_back(getColorRGB(packet->points(i).z()));
+            }
+        }
+    }
+
+    if (true)
+    {
+        osg::Geode* kgeode = new osg::Geode();
+        kgeode->setCullingActive(false);
+        osg::Geometry* nodeGeom = new osg::Geometry();
+        osg::StateSet* state = nodeGeom->getOrCreateStateSet();
+        state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+        nodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices2->size()));
+        osg::VertexBufferObject* vboP = nodeGeom->getOrCreateVertexBufferObject();
+        vboP->setUsage(GL_STREAM_DRAW);
+        nodeGeom->setUseDisplayList(false);
+        nodeGeom->setUseVertexBufferObjects(true);
+        nodeGeom->setVertexArray(kinectVertices2);
+        nodeGeom->setColorArray(kinectColours2);
+        nodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+        kgeode->addDrawable(nodeGeom);
+        kgeode->dirtyBound();
+        //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
+        kinectgrp2->removeChild(0, 1);
+        kinectgrp2->addChild(kgeode);
+    }
+
+    //        frameXMinus[0][i] = x;
+    //        frameYMinus[0][i] = y;
+    //        frameZMinus[0][i] = z;
+
+//    else
+//    {
+//        osg::Geode* kgeode = new osg::Geode();
+//        kgeode->setCullingActive(false);
+//        osg::Geometry* geometry = new osg::Geometry();
+//        geometry->setUseDisplayList(false);
+//        geometry->setUseVertexBufferObjects(true);
+//        // geometry->setVertexArray(kinectVertices);
+//        geometry->setVertexArray(kinectVertices);
+//        geometry->setNormalArray(normals);
+//        geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
+//        geometry->setColorArray(kinectColours);
+//        geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+//        geometry->addPrimitiveSet(new osg::DrawArrays(GL_POINTS, 0, kinectVertices->size()));
+//        //_root->removeChild(pointGeode);
+//        //pointGeode = new Geode();
+//        StateSet* ss = kgeode->getOrCreateStateSet();
+//        ss->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+//        kgeode->addDrawable(geometry);
+//        kinectgrp->removeChild(0, 1);
+//        kinectgrp->addChild(kgeode);
+//        //_root->addChild(pointGeode);
+//    }
 }
+
 
 void KinectDemo::ThirdLoop()
 {
@@ -934,6 +1027,7 @@ void KinectDemo::ThirdLoop()
     {
         // if skeletons are to be displayed in coorinates relative to the camera, position of the camera is saved in Skeleton::camPos,camRot (one for all skeletons)
         Skeleton::camPos = Vec3(kinectX, kinectY, kinectZ);
+        Skeleton::camPos2 = Vec3(kinect2X, kinect2Y, kinect2Z);
         //  Skeleton::camPos = Vec3d(0, kinectY, 0);
         float rotDegrees[3];
         rotDegrees[0] = 0;
@@ -1074,6 +1168,11 @@ void KinectDemo::cloudOff()
             cloud_socket = NULL;
         }
 
+        if (cloud_socket2) {
+            delete cloud_socket2;
+            cloud_socket2 = NULL;
+        }
+
         if (kinectgrp)
         {
             pgm1->ref();
@@ -1081,6 +1180,14 @@ void KinectDemo::cloudOff()
             // _root->removeChild(kinectgrp);
             SceneManager::instance()->getScene()->removeChild(kinectgrp);
             kinectgrp = NULL;
+        }
+        if (kinectgrp2)
+        {
+            pgm1->ref();
+            kinectgrp2->removeChild(0, 1);
+            // _root->removeChild(kinectgrp);
+            SceneManager::instance()->getScene()->removeChild(kinectgrp2);
+            kinectgrp2 = NULL;
         }
     }
     else
@@ -1098,6 +1205,8 @@ void KinectDemo::cloudOn()
         {
             if (!cloud_socket) cloud_socket = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
 
+            if (!cloud_socket2) cloud_socket2 = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud2"));
+
             kinectgrp = new osg::Group();
             osg::StateSet* state = kinectgrp->getOrCreateStateSet();
             state->setAttribute(pgm1);
@@ -1110,6 +1219,15 @@ void KinectDemo::cloudOn()
             //bangKN
             // SceneManager::instance()->getScene()->addChild(kinectgrp);
             // _root->addChild(kinectgrp);
+            kinectgrp2 = new osg::Group();
+            state = kinectgrp2->getOrCreateStateSet();
+            state->setAttribute(pgm1);
+            state->addUniform(new osg::Uniform("pointScale", initialPointScale));
+            state->addUniform(new osg::Uniform("globalAlpha", 1.0f));
+            pscale = initialPointScale;
+            _scaleUni = new osg::Uniform("pointScale", 1.0f * pscale);
+            kinectgrp2->getOrCreateStateSet()->addUniform(_scaleUni);
+            _pointClouds[1]->switchNode->addChild(kinectgrp2);
         }
         else
         {
@@ -1328,6 +1446,7 @@ void KinectDemo::kinectOff()
     for (std::map<int, Skeleton>::iterator it = mapIdSkel.begin(); it != mapIdSkel.end(); ++it)
     {
         it->second.detach(_pointClouds[0]->switchNode);
+        it->second.detach(_pointClouds[1]->switchNode);
     }
 
     mapIdSkel.clear();
@@ -1853,6 +1972,141 @@ void KinectDemo::createSceneObject()
     so->setScale(1);
 
     if (i == 0)
+    {
+        Vec3 currentPos = Vec3(0, 0, 0);
+        float rotDegrees[3];
+        rotDegrees[0] = 0;
+        rotDegrees[1] = 0;
+        rotDegrees[2] = 180;
+        rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
+        rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
+        rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
+        Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
+        //so->setRotation(rot);
+        //so->setPosition(currentPos);
+    }
+
+    _pointClouds[i]->so = so;
+    _pointClouds[i]->pos = so->getPosition();
+    _pointClouds[i]->rot = so->getRotation();
+    _pointClouds[i]->active = false;
+    _pointClouds[i]->loaded = true;
+}
+
+void KinectDemo::createSceneObject2()
+{
+    cerr << "Creating SceneObject for second kinect\n";
+    PointCloud* newModel = new PointCloud();
+    _pointClouds.push_back(newModel);
+    string name = "test2";
+    int i = _pointClouds.size() - 1;
+
+    if (i == -1) return;
+
+    // float currentScale = _pointClouds[i]->scale;
+    float currentScale = 1;
+    SceneObject* so;
+    so = new SceneObject(name, false, false, false, true, false);
+    osg::Switch* switchNode = new osg::Switch();
+    so->addChild(switchNode);
+    PluginHelper::registerSceneObject(so, "Test2");
+    so->attachToScene();
+    //Add currentNode to switchNode
+    // _models3d[i]->currentModelNode = modelNode;
+    cerr << "here2\n";
+
+    //  switchNode->addChild(kinectgrp);
+    if (i == 1)
+    {
+        if (ConfigManager::getBool("Plugin.KinectDemo.ShowKinectModel"))
+        {
+            //Loads Kinect Obj file
+            Matrixd scale;
+            double snum = 1;
+            scale.makeScale(snum, snum, snum);
+            MatrixTransform* modelScaleTrans = new MatrixTransform();
+            modelScaleTrans->setMatrix(scale);
+            modelScaleTrans->addChild(_modelFileNode1);
+            MatrixTransform* rotate = new osg::MatrixTransform();
+            float rotDegrees[3];
+            rotDegrees[0] = -90;
+            rotDegrees[1] = 0;
+            rotDegrees[2] = 180;
+            rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
+            rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
+            rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
+            Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
+            Matrix rotMat;
+            rotMat.makeRotate(rot);
+            rotate->setMatrix(rotMat);
+            rotate->addChild(modelScaleTrans);
+            MatrixTransform* translate = new osg::MatrixTransform();
+            osg::Matrixd tmat;
+            Vec3 pos = Vec3(kinectX, kinectY, kinectZ);
+            tmat.makeTranslate(pos);
+            translate->setMatrix(tmat);
+            translate->addChild(rotate);
+            switchNode->addChild(translate);
+        }
+    }
+
+    _pointClouds[i]->switchNode = switchNode;
+    //Add menu system
+    so->setNavigationOn(true);
+    so->setMovable(false);
+    so->addMoveMenuItem();
+    so->addNavigationMenuItem();
+    float min = 0.0001;
+    float max = 1;
+    so->addScaleMenuItem("Scale", min, max, currentScale);
+    SubMenu* sm = new SubMenu("Position");
+    so->addMenuItem(sm);
+    MenuButton* mb;
+    mb = new MenuButton("Load");
+    mb->setCallback(this);
+    sm->addItem(mb);
+    SubMenu* savemenu = new SubMenu("Save");
+    sm->addItem(savemenu);
+    mb = new MenuButton("Save");
+    mb->setCallback(this);
+    savemenu->addItem(mb);
+    _pointClouds[i]->saveMap = mb;
+    mb = new MenuButton("Save New Kml");
+    mb->setCallback(this);
+    savemenu->addItem(mb);
+    _pointClouds[i]->saveNewMap = mb;
+    mb = new MenuButton("Reset to Origin");
+    mb->setCallback(this);
+    so->addMenuItem(mb);
+    _pointClouds[i]->resetMap = mb;
+    MenuCheckbox* mc;
+    mc = new MenuCheckbox("Active", false);
+    mc->setCallback(this);
+    so->addMenuItem(mc);
+    _pointClouds[i]->activeMap = mc;
+    mc = new MenuCheckbox("Visible", true);
+    mc->setCallback(this);
+    so->addMenuItem(mc);
+    _pointClouds[i]->visibleMap = mc;
+    _pointClouds[i]->visible = true;
+    float rValue = 0;
+    min = -1;
+    max = 1;
+    MenuRangeValue* rt = new MenuRangeValue("rx", min, max, rValue);
+    rt->setCallback(this);
+    so->addMenuItem(rt);
+    _pointClouds[i]->rxMap = rt;
+    rt = new MenuRangeValue("ry", min, max, rValue);
+    rt->setCallback(this);
+    so->addMenuItem(rt);
+    _pointClouds[i]->ryMap = rt;
+    rt = new MenuRangeValue("rz", min, max, rValue);
+    rt->setCallback(this);
+    so->addMenuItem(rt);
+    _pointClouds[i]->rzMap = rt;
+    so->setScale(1);
+
+    if (i == 1)
     {
         Vec3 currentPos = Vec3(0, 0, 0);
         float rotDegrees[3];

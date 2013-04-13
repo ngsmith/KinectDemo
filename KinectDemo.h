@@ -55,6 +55,7 @@ zmq::context_t context(1);
 SubSocket<RemoteKinect::SkeletonFrame>* skel_socket;
 SubSocket<RemoteKinect::DepthMap>* depth_socket;
 SubSocket<RemoteKinect::PointCloud>* cloud_socket;
+SubSocket<RemoteKinect::PointCloud>* cloud_socket2;
 SubSocket<RemoteKinect::ColorMap>* color_socket;
 
 //zmq::context_t contextCloud(1);
@@ -102,6 +103,7 @@ public:
     bool kShowInfoPanel;
     osg::Program* pgm1;
     osg::Group* kinectgrp;
+    osg::Group* kinectgrp2;
     float initialPointScale;
 
     struct PointCloud
@@ -147,6 +149,7 @@ public:
     std::vector<PointCloud* > _pointClouds;
     std::vector<SelectableItem> selectableItems;
     void createSceneObject();
+    void createSceneObject2();
     void sendEvents();
     void kinectInit();
     void kinectOff();
@@ -207,6 +210,8 @@ public:
 
     osg::ref_ptr<osg::Vec4Array> kinectColours;
     osg::ref_ptr<osg::Vec3Array> kinectVertices;
+    osg::ref_ptr<osg::Vec4Array> kinectColours2;
+    osg::ref_ptr<osg::Vec3Array> kinectVertices2;
     CloudManager* _cloudThread;
     // SkeletonManager * _skeletonThread;
 protected:
@@ -228,6 +233,9 @@ protected:
     cvr::MenuRangeValue* sliderX;
     cvr::MenuRangeValue* sliderY;
     cvr::MenuRangeValue* sliderZ;
+    cvr::MenuRangeValue* slider2X;
+    cvr::MenuRangeValue* slider2Y;
+    cvr::MenuRangeValue* slider2Z;
     cvr::MenuRangeValue* sliderRX;
     cvr::MenuRangeValue* sliderRY;
     cvr::MenuRangeValue* sliderRZ;
@@ -277,6 +285,9 @@ protected:
     float kinectX;
     float kinectY;
     float kinectZ;
+    float kinect2X;
+    float kinect2Y;
+    float kinect2Z;
     float kinectRX;
     float kinectRY;
     float kinectRZ;

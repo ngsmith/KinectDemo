@@ -45,7 +45,9 @@ struct Skeleton
 {
     static bool moveWithCam;
     static osg::Vec3d camPos;
+    static osg::Vec3d camPos2;
     static osg::Quat camRot;
+    static osg::Quat camRot2;
     static bool navSpheres;
 
     // are hands holding objects?
