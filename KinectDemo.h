@@ -103,7 +103,11 @@ public:
     bool kShowInfoPanel;
     osg::Program* pgm1;
     osg::Group* kinectgrp;
+    //    osg::Geometry* kinectGeom;
+    //    osg::DrawArrays* kinectDrawArrays;
     osg::Group* kinectgrp2;
+    //    osg::Geometry* kinectgeo2;
+    //    osg::DrawArrays* kinectDrawArrays2;
     float initialPointScale;
 
     struct PointCloud
@@ -212,6 +216,7 @@ public:
     osg::ref_ptr<osg::Vec3Array> kinectVertices;
     osg::ref_ptr<osg::Vec4Array> kinectColours2;
     osg::ref_ptr<osg::Vec3Array> kinectVertices2;
+    osg::ref_ptr<osg::Geode> kgeode;
     CloudManager* _cloudThread;
     // SkeletonManager * _skeletonThread;
 protected:
