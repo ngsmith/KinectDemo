@@ -364,7 +364,7 @@ void KinectDemo::preFrame()
                 if (sk->cylinder.locked && ((sk->joints[9].position.z() - sk->joints[7].position.z() < HAND_ELBOW_OFFSET) && (sk->joints[15].position.z() - sk->joints[13].position.z() < HAND_ELBOW_OFFSET)))
                     detachC = true;
 
-                if (sk->cylinder.handsBeenAboveElbows && (distance > distanceMAX  || distance < distanceMIN || detachC))
+                if (sk->cylinder.handsBeenAboveElbows && (distance > distanceMAX*0.667  || distance < distanceMIN || detachC))
                 {
                     sk->cylinder.detach(_pointClouds[0]->switchNode);
 
@@ -434,7 +434,7 @@ void KinectDemo::preFrame()
                 if (sk->leftHandBusy == false && sk->rightHandBusy == false)
                 {
                     // CONDITIONS TO CREATE CYLINDER
-                    if (distance < distanceMAX / 2 && distance > distanceMIN && ((sk->joints[9].position.z() - sk->joints[7].position.z() > HAND_ELBOW_OFFSET) && (sk->joints[15].position.z() - sk->joints[13].position.z() > HAND_ELBOW_OFFSET)))
+                    if (distance < distanceMAX / 3 && distance > distanceMIN /*&& ((sk->joints[9].position.z() - sk->joints[7].position.z() > HAND_ELBOW_OFFSET) && (sk->joints[15].position.z() - sk->joints[13].position.z() > HAND_ELBOW_OFFSET))*/)
                     {
                         sk->cylinder.attach(_pointClouds[0]->switchNode);
                     }
@@ -460,7 +460,7 @@ void KinectDemo::preFrame()
                 posMat.setTrans(mapIdSkel[cylinderId].cylinder.center);
                 selectableItems[j].mt->setMatrix(posMat);
                 double newscale = selectableItems[j].scale;
-                newscale *= (1 + ((mapIdSkel[cylinderId].cylinder.length - mapIdSkel[cylinderId].cylinder.prevLength) / (500 / 1000.0)));
+                newscale *= (1 + ((mapIdSkel[cylinderId].cylinder.length - mapIdSkel[cylinderId].cylinder.prevLength) / (500 / 1.0)));
 
                 if (newscale < 1  / 1000.0) newscale = 1  / 1000.0;
 
@@ -692,15 +692,15 @@ void KinectDemo::kinectInit()
         _modelFileNode5 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("cessna.osg"));
         _modelFileNode4 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("cow.osg"));
         _modelFileNode3 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("robot.osg"));
-        _sphereRadius = 0.07;
+        _sphereRadius = 0.07*500;
         //  Group* kinectgrp = new Group();
         //  kinectgrp->addChild(_modelFileNode3);
         // createSceneObject(kinectgrp);
         // createSelObj(Vec3(-0.70,  -2.0,  0.15),   string("DD"), 0.002, _modelFileNode1);
         createSelObj(Vec3(0.00,  3000.0,  0.0),   string("FD"), 1, _modelFileNode2);
-        createSelObj(Vec3(-0.4,      3000.0,  0.15),   string("GD"), 2,  _modelFileNode3);
-        createSelObj(Vec3(0.40,   3000.0,  0.15),   string("ED"), 2,  _modelFileNode4);
-        createSelObj(Vec3(0.70,   3000.0,  0.15),   string("ZD"), 0.2, _modelFileNode5);
+        createSelObj(Vec3(-400,   3000.0,  0.15),   string("GD"), 20,  _modelFileNode3);
+        createSelObj(Vec3(400,   3000.0,  0.15),   string("ED"), 20,  _modelFileNode4);
+        createSelObj(Vec3(700,   3000.0,  0.15),   string("ZD"), 10, _modelFileNode5);
         //CreateSceneObject for all Kinect Data
         createSceneObject();
         createSceneObject2();
@@ -1529,36 +1529,18 @@ osg::Vec4f KinectDemo::getColorRGBDepth(int dist)
 void KinectDemo::checkHandsIntersections(int skel_id)
 {
     Skeleton* skel = &mapIdSkel[skel_id];
-    Sphere* handSphere = new Sphere(skel->joints[M_LHAND].position, 100);
+    Sphere* handSphere = new Sphere(skel->joints[M_LHAND].position, 50);
     ShapeDrawable* ggg3 = new ShapeDrawable(handSphere);
     const osg::BoundingBox& bboxHandL = ggg3->getBound();
-    handSphere = new Sphere(skel->joints[M_RHAND].position, 100);
+    handSphere = new Sphere(skel->joints[M_RHAND].position, 50);
     ggg3 = new ShapeDrawable(handSphere);
     const osg::BoundingBox& bboxHandR = ggg3->getBound();
-
     for (int j = 0; j < selectableItems.size(); j++)
     {
-        // fake sphere to easily calculate boundary
         Vec3 center2 = Vec3(0, 0, 0) * (selectableItems[j].mt->getMatrix());
-        Box* fakeSphere = new Box(center2, 350 * selectableItems[j].scale);
+        Box* fakeSphere = new Box(center2, 25 * sqrt(selectableItems[j].scale));
         ShapeDrawable* ggg2 = new ShapeDrawable(fakeSphere);
         const osg::BoundingBox& fakeBbox = ggg2->getBound();
-
-        if (bboxHandL.intersects(fakeBbox) /*&& selectableItems[j].lock == -1*/ && skel->leftHandBusy == false)
-        {
-            selectableItems[j].lockTo(skel_id);
-            selectableItems[j].lockType = 1;
-            skel->leftHandBusy = true;
-            break; // lock only one object
-        }
-
-        if (bboxHandR.intersects(fakeBbox) /*&& selectableItems[j].lock == -1*/ && skel->rightHandBusy == false)
-        {
-            selectableItems[j].lockTo(skel_id);
-            selectableItems[j].lockType = 2;
-            skel->rightHandBusy = true;
-            break; // lock only one object
-        }
 
         if (selectableItems[j].lock == skel_id && (selectableItems[j].lockType == 1))
         {
@@ -1566,6 +1548,7 @@ void KinectDemo::checkHandsIntersections(int skel_id)
             {
                 selectableItems[j].unlock();
                 skel->leftHandBusy = false;
+                cout << "___ unlocking left" << endl;
             }
         }
 
@@ -1575,7 +1558,35 @@ void KinectDemo::checkHandsIntersections(int skel_id)
             {
                 selectableItems[j].unlock();
                 skel->rightHandBusy = false;
+                cout << "___ unlocking right" << endl;
             }
+        }
+    }
+
+    for (int j = 0; j < selectableItems.size(); j++)
+    {
+        // fake sphere to easily calculate boundary
+        Vec3 center2 = Vec3(0, 0, 0) * (selectableItems[j].mt->getMatrix());
+        Box* fakeSphere = new Box(center2, 25 * sqrt(selectableItems[j].scale));
+        ShapeDrawable* ggg2 = new ShapeDrawable(fakeSphere);
+        const osg::BoundingBox& fakeBbox = ggg2->getBound();
+
+        if (bboxHandL.intersects(fakeBbox) && selectableItems[j].lock == -1 && skel->leftHandBusy == false)
+        {
+            cout << "_locking left" << endl;
+            selectableItems[j].lockTo(skel_id);
+            selectableItems[j].lockType = 1;
+            skel->leftHandBusy = true;
+            break;
+        }
+
+        if (bboxHandR.intersects(fakeBbox) && selectableItems[j].lock == -1 && skel->rightHandBusy == false)
+        {
+            cout << "_locking right" << endl;
+            selectableItems[j].lockTo(skel_id);
+            selectableItems[j].lockType = 2;
+            skel->rightHandBusy = true;
+            break;
         }
     }
 }
@@ -2065,7 +2076,7 @@ void KinectDemo::createSceneObject2()
             rotate->addChild(modelScaleTrans);
             MatrixTransform* translate = new osg::MatrixTransform();
             osg::Matrixd tmat;
-            Vec3 pos = Vec3(kinectX, kinectY, kinectZ);
+            Vec3 pos = Vec3(kinectX+1000, kinectY, kinectZ);
             tmat.makeTranslate(pos);
             translate->setMatrix(tmat);
             translate->addChild(rotate);
