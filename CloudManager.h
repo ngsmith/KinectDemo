@@ -49,6 +49,8 @@ public:
     osg::ref_ptr<osg::Vec3Array> kinectVertices;
     osg::ref_ptr<osg::Vec3Array> kinectNormals;
     osg::ref_ptr<osg::Geometry> tnodeGeom;
+
+    bool useKColor;
 protected:
 
     osg::ref_ptr<osg::Vec4Array> newColours;
@@ -56,7 +58,6 @@ protected:
     osg::ref_ptr<osg::Vec3Array> newNormals;
     bool _cacheDone;
     bool _next;
-    bool useKColor;
     bool pause;
     bool should_quit;
     int _firstRun;

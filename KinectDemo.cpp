@@ -241,11 +241,17 @@ void KinectDemo::menuCallback(MenuItem* menuItem)
     {
         if (_kColorOn->getValue())
         {
-            useKColor = true;
+            for (int i = 0; i < kinects->size(); i++)
+            {
+                kinects->at(i)->cm->useKColor = true;
+            }
         }
         else
         {
-            useKColor = false;
+            for (int i = 0; i < kinects->size(); i++)
+            {
+                kinects->at(i)->cm->useKColor = false;
+            }
         }
     }
 
@@ -307,16 +313,18 @@ void KinectDemo::preFrame()
 
     if (kinectThreaded)
     {
-        ///XXXKO
-        if (kinects!=NULL && kinects->size()>0)
+        if (kinects != NULL && kinects->size() > 0)
+        {
             kinects->at(0)->update();
+        }
     }
-    else
-    {
-        // loop getting new data from Kinect server
-        ThirdLoop();
-        updateInfoPanel();
-    }
+
+    //  else
+    //  {
+    //      // loop getting new data from Kinect server
+    //      ThirdLoop();
+    //      updateInfoPanel();
+    //  }
 
     // show image from Kinect camera every ... frames
     if (kShowColor || kShowDepth)
@@ -611,24 +619,7 @@ void KinectDemo::kinectInit()
     filterBackground = false;
     assignPointsToSkeletons = false;
     classifyPoints = false;
-    kinects=NULL;
-
-    if (true)
-    {
-        initialPointScale = ConfigManager::getFloat("Plugin.KinectDemo.KinectDefaultOn.KinectPointSize");
-        cerr << "PointScale=" << initialPointScale << "\n";
-        pgm1 = new osg::Program;
-        pgm1->setName("Sphere");
-        std::string shaderPath = ConfigManager::getEntry("Plugin.Points.ShaderPath");
-        pgm1->addShader(osg::Shader::readShaderFile(osg::Shader::VERTEX, osgDB::findDataFile(shaderPath + "/Sphere.vert")));
-        pgm1->addShader(osg::Shader::readShaderFile(osg::Shader::FRAGMENT, osgDB::findDataFile(shaderPath + "/Sphere.frag")));
-        pgm1->addShader(osg::Shader::readShaderFile(osg::Shader::GEOMETRY, osgDB::findDataFile(shaderPath + "/Sphere.geom")));
-        pgm1->setParameter(GL_GEOMETRY_VERTICES_OUT_EXT, 4);
-        pgm1->setParameter(GL_GEOMETRY_INPUT_TYPE_EXT, GL_POINTS);
-        pgm1->setParameter(GL_GEOMETRY_OUTPUT_TYPE_EXT, GL_TRIANGLE_STRIP);
-        // move camera to the kinect-person
-    }
-
+    kinects = new std::vector<KinectObject*>();
     //Get KinectSkeleton Offset
     kinect2X =  kinectX = ConfigManager::getFloat("x", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
     kinect2Y =  kinectY = ConfigManager::getFloat("y", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
@@ -637,13 +628,6 @@ void KinectDemo::kinectInit()
     kinect2RY =  kinectRY = ConfigManager::getFloat("ry", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
     kinect2RZ =  kinectRZ = ConfigManager::getFloat("rz", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
     kinect2RW =  kinectRW = ConfigManager::getFloat("rw", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectX = ConfigManager::getFloat("x", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectY = ConfigManager::getFloat("y", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectZ = ConfigManager::getFloat("z", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectRX = ConfigManager::getFloat("rx", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectRY = ConfigManager::getFloat("ry", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectRZ = ConfigManager::getFloat("rz", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectRW = ConfigManager::getFloat("rw", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
     //Show info Panel
     kShowInfoPanel = ConfigManager::getBool("Plugin.KinectDemo.KinectDefaultOn.ShowInfoPanel");
 
@@ -705,7 +689,7 @@ void KinectDemo::kinectInit()
         distanceMIN = ConfigManager::getFloat("Plugin.KinectDemo.Cylinder.Min");
         Skeleton::navSpheres = false;
         bcounter = 0;
-        _modelFileNode1 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("kinect_mm.obj"));
+        //    _modelFileNode1 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("kinect_mm.obj"));
         _modelFileNode2 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("50563.ply"));//dumptruck.osg"));
         _modelFileNode5 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("cessna.osg"));
         _modelFileNode4 = osgDB::readNodeFile(ConfigManager::getEntry("Plugin.KinectDemo.3DModelFolder").append("cow.osg"));
@@ -720,36 +704,31 @@ void KinectDemo::kinectInit()
         createSelObj(Vec3(400,   3000.0,  0.15),   string("ED"), 20,  _modelFileNode4);
         createSelObj(Vec3(700,   3000.0,  0.15),   string("ZD"), 10, _modelFileNode5);
         //CreateSceneObject for all Kinect Data
-        createSceneObject();
-        createSceneObject2();
+        //createSceneObject();
+        //createSceneObject2();
     }
 
     minDistHSV = 700;
     maxDistHSV = 5000;
     minDistHSVDepth = 300;
     maxDistHSVDepth = 6000;
-
-    if (!kinectThreaded)
-    {
-        // precompute colors for ... mm distances
-        for (int i = 0; i < 10001; i++) getColorRGB(i);
-
-        for (int i = 0; i < 15001; i++) getColorRGBDepth(i);
-
-        // precompute packed values for colors on depthmap
-        for (int i = 0; i < 15000; i++)
-        {
-            //http://graphics.stanford.edu/~mdfisher/Kinect.html
-            osg::Vec4 color = getColorRGBDepth(i);
-            char rrr = (char)((float)color.r() * 255.0);
-            char ggg = (char)((float)color.g() * 255.0);
-            char bbb = (char)((float)color.b() * 255.0);
-            uint32_t packed = (((rrr << 0) | (ggg << 8) | (bbb << 16)) & 0x00FFFFFF);
-            dpmap[i] = packed;
-        }
-    }
-
-    cout << endl << endl;
+    //   if (!kinectThreaded)
+    //   {
+    //       // precompute colors for ... mm distances
+    //       for (int i = 0; i < 10001; i++) getColorRGB(i);
+    //       for (int i = 0; i < 15001; i++) getColorRGBDepth(i);
+    //       // precompute packed values for colors on depthmap
+    //       for (int i = 0; i < 15000; i++)
+    //       {
+    //           //http://graphics.stanford.edu/~mdfisher/Kinect.html
+    //           osg::Vec4 color = getColorRGBDepth(i);
+    //           char rrr = (char)((float)color.r() * 255.0);
+    //           char ggg = (char)((float)color.g() * 255.0);
+    //           char bbb = (char)((float)color.b() * 255.0);
+    //           uint32_t packed = (((rrr << 0) | (ggg << 8) | (bbb << 16)) & 0x00FFFFFF);
+    //           dpmap[i] = packed;
+    //       }
+    //   }
     ThirdInit();
     kinectInitialized = true;
     NPIX = 307201;
@@ -779,63 +758,63 @@ void KinectDemo::kinectInit()
 }
 
 // saves environment in environmentX,Y,Z - mean over 100 frames ignoring zeros
-void KinectDemo::saveEnvironment()
-{
-    for (int i = 0; i < NPIX; i++)
-        environmentX[i] = environmentY[i] = environmentZ[i] = 0;
-
-    cloud_socket = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
-    cloud_socket2 = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud2"));
-    packet = new RemoteKinect::PointCloud();
-    int nframes = 100;
-    int cntx = 0;
-    int cnty = 0;
-    int cntz = 0;
-
-    for (int i = 0; i < nframes; i++)
-    {
-        if (cloud_socket->recv(*packet))
-        {
-            for (int i = 0; i < packet->points_size(); i++)
-            {
-                float x = packet->points(i).x();
-                float y = packet->points(i).z();
-                float z = packet->points(i).y();
-
-                if (x != 0)
-                {
-                    environmentX[i] += x;
-                    cntx++;
-                }
-
-                if (y != 0)
-                {
-                    environmentY[i] += y;
-                    cnty++;
-                }
-
-                if (z != 0)
-                {
-                    environmentZ[i] += z;
-                    cntz++;
-                }
-            }
-        }
-    }
-
-    for (int i = 0; i < NPIX; i++)
-    {
-        environmentX[i] /= cntx;
-        environmentY[i] /= cnty;
-        environmentZ[i] /= cntz;
-    }
-
-    delete cloud_socket;
-    cloud_socket = NULL;
-    delete cloud_socket2;
-    cloud_socket2 = NULL;
-    cout << "Environment captured" << endl;
-}
+//void KinectDemo::saveEnvironment()
+//{
+//    for (int i = 0; i < NPIX; i++)
+//        environmentX[i] = environmentY[i] = environmentZ[i] = 0;
+//
+//    cloud_socket = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
+//    cloud_socket2 = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud2"));
+//    packet = new RemoteKinect::PointCloud();
+//    int nframes = 100;
+//    int cntx = 0;
+//    int cnty = 0;
+//    int cntz = 0;
+//
+//    for (int i = 0; i < nframes; i++)
+//    {
+//        if (cloud_socket->recv(*packet))
+//        {
+//            for (int i = 0; i < packet->points_size(); i++)
+//            {
+//                float x = packet->points(i).x();
+//                float y = packet->points(i).z();
+//                float z = packet->points(i).y();
+//
+//                if (x != 0)
+//                {
+//                    environmentX[i] += x;
+//                    cntx++;
+//                }
+//
+//                if (y != 0)
+//                {
+//                    environmentY[i] += y;
+//                    cnty++;
+//                }
+//
+//                if (z != 0)
+//                {
+//                    environmentZ[i] += z;
+//                    cntz++;
+//                }
+//            }
+//        }
+//    }
+//
+//    for (int i = 0; i < NPIX; i++)
+//    {
+//        environmentX[i] /= cntx;
+//        environmentY[i] /= cnty;
+//        environmentZ[i] /= cntz;
+//    }
+//
+//    delete cloud_socket;
+//    cloud_socket = NULL;
+//    delete cloud_socket2;
+//    cloud_socket2 = NULL;
+//    cout << "Environment captured" << endl;
+//}
 
 void KinectDemo::createSelObj(osg::Vec3 pos, string color, float scalenumber, osg::Node* model)
 {
@@ -865,418 +844,418 @@ void KinectDemo::createSelObj(osg::Vec3 pos, string color, float scalenumber, os
     selectableItems.push_back(SelectableItem(boxGeode, modelScaleTrans, translate, rotate, snum));
 }
 
-void KinectDemo::showPointCloud()
-{
-    // cerr << ".";
-    float r, g, b, a;
-    kinectVertices = new osg::Vec3Array;
-    //kinectVertices->empty();
-    osg::Vec3Array* normals = new osg::Vec3Array;
-    kinectColours = new osg::Vec4Array;
-    //kinectColours->empty();
-    int i;
+//void KinectDemo::showPointCloud()
+//{
+//    // cerr << ".";
+//    float r, g, b, a;
+//    kinectVertices = new osg::Vec3Array;
+//    //kinectVertices->empty();
+//    osg::Vec3Array* normals = new osg::Vec3Array;
+//    kinectColours = new osg::Vec4Array;
+//    //kinectColours->empty();
+//    int i;
+//
+//    if (cloud_socket->recv(*packet))
+//    {
+//        // cerr << "packet=" << packet->points_size() << "\n";
+//        for (i = 0; i < packet->points_size(); i++)
+//        {
+//            float x = packet->points(i).x();
+//            float y = packet->points(i).z();
+//            float z = packet->points(i).y();
+//            X[i] = x;
+//            Y[i] = y;
+//            Z[i] = z;
+//            osg::Vec3 ppos(X[i] + Skeleton::camPos.x(),
+//                           Y[i] + Skeleton::camPos.y(),
+//                           Z[i] + Skeleton::camPos.z());
+//            kinectVertices->push_back(ppos);
+//
+//            if (useKColor)
+//            {
+//                r = (packet->points(i).r() / 255.);
+//                g = (packet->points(i).g() / 255.);
+//                b = (packet->points(i).b() / 255.);
+//                a = 1;
+//                kinectColours->push_back(osg::Vec4f(r, g, b, a));
+//            }
+//            else
+//            {
+//                kinectColours->push_back(getColorRGB(packet->points(i).z()));
+//            }
+//
+//            //            for (int j = NFRAMES; j > 0; j--)
+//            {
+//                //               frameXMinus[j][i] = frameXMinus[j - 1][i];
+//                //               frameYMinus[j][i] = frameYMinus[j - 1][i];
+//                //               frameZMinus[j][i] = frameZMinus[j - 1][i];
+//            }
+//        }
+//    }
+//
+//    if (kinectVertices->size() != 0 && true)
+//    {
+//        if (_firstRun)
+//        {
+//            _firstRun = false;
+//            osg::Geode* kgeode = new osg::Geode();
+//            kgeode->setCullingActive(false);
+//            knodeGeom = new osg::Geometry();
+//            osg::StateSet* state = knodeGeom->getOrCreateStateSet();
+//            state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+//            knodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices->size()));
+//            osg::VertexBufferObject* vboP = knodeGeom->getOrCreateVertexBufferObject();
+//            vboP->setUsage(GL_STREAM_DRAW);
+//            knodeGeom->setUseDisplayList(false);
+//            knodeGeom->setUseVertexBufferObjects(true);
+//            knodeGeom->setVertexArray(kinectVertices);
+//            knodeGeom->setColorArray(kinectColours);
+//            knodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+//            kgeode->addDrawable(knodeGeom);
+//            kgeode->dirtyBound();
+//            //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
+//            kinectgrp->removeChild(0, 1);
+//            kinectgrp->addChild(kgeode);
+//        }
+//        else
+//        {
+//            knodeGeom->setVertexArray(kinectVertices);
+//            knodeGeom->setColorArray(kinectColours);
+//        }
+//    }
+//
+//    kinectVertices2 = new osg::Vec3Array;
+//    //kinectVertices->empty();
+//    normals = new osg::Vec3Array;
+//    kinectColours2 = new osg::Vec4Array;
+//    //kinectColours2->empty();
+//
+//    if (cloud_socket2->recv(*packet))
+//    {
+//        for (int i = 0; i < packet->points_size(); i++)
+//        {
+//            float x = packet->points(i).x();
+//            float y = packet->points(i).z();
+//            float z = packet->points(i).y();
+//            X[i] = x;
+//            Y[i] = y;
+//            Z[i] = z;
+//            osg::Vec3 ppos(X[i] + Skeleton::camPos2.x(),
+//                           Y[i] + Skeleton::camPos2.y(),
+//                           Z[i] + Skeleton::camPos2.z());
+//            kinectVertices2->push_back(ppos);
+//
+//            if (useKColor)
+//            {
+//                r = (packet->points(i).r() / 255.);
+//                g = (packet->points(i).g() / 255.);
+//                b = (packet->points(i).b() / 255.);
+//                a = 1;
+//                kinectColours2->push_back(osg::Vec4f(r, g, b, a));
+//            }
+//            else
+//            {
+//                kinectColours2->push_back(getColorRGB(packet->points(i).z()));
+//            }
+//        }
+//    }
+//
+//    if (kinectVertices2->size() != 0 && true)
+//    {
+//        osg::Geode* kgeode = new osg::Geode();
+//        kgeode->setCullingActive(false);
+//        osg::Geometry* nodeGeom = new osg::Geometry();
+//        osg::StateSet* state = nodeGeom->getOrCreateStateSet();
+//        state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+//        nodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices2->size()));
+//        osg::VertexBufferObject* vboP = nodeGeom->getOrCreateVertexBufferObject();
+//        vboP->setUsage(GL_STREAM_DRAW);
+//        nodeGeom->setUseDisplayList(false);
+//        nodeGeom->setUseVertexBufferObjects(true);
+//        nodeGeom->setVertexArray(kinectVertices2);
+//        nodeGeom->setColorArray(kinectColours2);
+//        nodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+//        kgeode->addDrawable(nodeGeom);
+//        kgeode->dirtyBound();
+//        //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
+//        kinectgrp2->removeChild(0, 1);
+//        kinectgrp2->addChild(kgeode);
+//    }
+//
+//    //        frameXMinus[0][i] = x;
+//    //        frameYMinus[0][i] = y;
+//    //        frameZMinus[0][i] = z;
+//    //    else
+//    //    {
+//    //        osg::Geode* kgeode = new osg::Geode();
+//    //        kgeode->setCullingActive(false);
+//    //        osg::Geometry* geometry = new osg::Geometry();
+//    //        geometry->setUseDisplayList(false);
+//    //        geometry->setUseVertexBufferObjects(true);
+//    //        // geometry->setVertexArray(kinectVertices);
+//    //        geometry->setVertexArray(kinectVertices);
+//    //        geometry->setNormalArray(normals);
+//    //        geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
+//    //        geometry->setColorArray(kinectColours);
+//    //        geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+//    //        geometry->addPrimitiveSet(new osg::DrawArrays(GL_POINTS, 0, kinectVertices->size()));
+//    //        //_root->removeChild(pointGeode);
+//    //        //pointGeode = new Geode();
+//    //        StateSet* ss = kgeode->getOrCreateStateSet();
+//    //        ss->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+//    //        kgeode->addDrawable(geometry);
+//    //        kinectgrp->removeChild(0, 1);
+//    //        kinectgrp->addChild(kgeode);
+//    //        //_root->addChild(pointGeode);
+//    //    }
+//}
 
-    if (cloud_socket->recv(*packet))
-    {
-        // cerr << "packet=" << packet->points_size() << "\n";
-        for (i = 0; i < packet->points_size(); i++)
-        {
-            float x = packet->points(i).x();
-            float y = packet->points(i).z();
-            float z = packet->points(i).y();
-            X[i] = x;
-            Y[i] = y;
-            Z[i] = z;
-            osg::Vec3 ppos(X[i] + Skeleton::camPos.x(),
-                           Y[i] + Skeleton::camPos.y(),
-                           Z[i] + Skeleton::camPos.z());
-            kinectVertices->push_back(ppos);
 
-            if (useKColor)
-            {
-                r = (packet->points(i).r() / 255.);
-                g = (packet->points(i).g() / 255.);
-                b = (packet->points(i).b() / 255.);
-                a = 1;
-                kinectColours->push_back(osg::Vec4f(r, g, b, a));
-            }
-            else
-            {
-                kinectColours->push_back(getColorRGB(packet->points(i).z()));
-            }
-
-            //            for (int j = NFRAMES; j > 0; j--)
-            {
-                //               frameXMinus[j][i] = frameXMinus[j - 1][i];
-                //               frameYMinus[j][i] = frameYMinus[j - 1][i];
-                //               frameZMinus[j][i] = frameZMinus[j - 1][i];
-            }
-        }
-    }
-
-    if (kinectVertices->size() != 0 && true)
-    {
-        if (_firstRun)
-        {
-            _firstRun = false;
-            osg::Geode* kgeode = new osg::Geode();
-            kgeode->setCullingActive(false);
-            knodeGeom = new osg::Geometry();
-            osg::StateSet* state = knodeGeom->getOrCreateStateSet();
-            state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-            knodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices->size()));
-            osg::VertexBufferObject* vboP = knodeGeom->getOrCreateVertexBufferObject();
-            vboP->setUsage(GL_STREAM_DRAW);
-            knodeGeom->setUseDisplayList(false);
-            knodeGeom->setUseVertexBufferObjects(true);
-            knodeGeom->setVertexArray(kinectVertices);
-            knodeGeom->setColorArray(kinectColours);
-            knodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-            kgeode->addDrawable(knodeGeom);
-            kgeode->dirtyBound();
-            //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
-            kinectgrp->removeChild(0, 1);
-            kinectgrp->addChild(kgeode);
-        }
-        else
-        {
-            knodeGeom->setVertexArray(kinectVertices);
-            knodeGeom->setColorArray(kinectColours);
-        }
-    }
-
-    kinectVertices2 = new osg::Vec3Array;
-    //kinectVertices->empty();
-    normals = new osg::Vec3Array;
-    kinectColours2 = new osg::Vec4Array;
-    //kinectColours2->empty();
-
-    if (cloud_socket2->recv(*packet))
-    {
-        for (int i = 0; i < packet->points_size(); i++)
-        {
-            float x = packet->points(i).x();
-            float y = packet->points(i).z();
-            float z = packet->points(i).y();
-            X[i] = x;
-            Y[i] = y;
-            Z[i] = z;
-            osg::Vec3 ppos(X[i] + Skeleton::camPos2.x(),
-                           Y[i] + Skeleton::camPos2.y(),
-                           Z[i] + Skeleton::camPos2.z());
-            kinectVertices2->push_back(ppos);
-
-            if (useKColor)
-            {
-                r = (packet->points(i).r() / 255.);
-                g = (packet->points(i).g() / 255.);
-                b = (packet->points(i).b() / 255.);
-                a = 1;
-                kinectColours2->push_back(osg::Vec4f(r, g, b, a));
-            }
-            else
-            {
-                kinectColours2->push_back(getColorRGB(packet->points(i).z()));
-            }
-        }
-    }
-
-    if (kinectVertices2->size() != 0 && true)
-    {
-        osg::Geode* kgeode = new osg::Geode();
-        kgeode->setCullingActive(false);
-        osg::Geometry* nodeGeom = new osg::Geometry();
-        osg::StateSet* state = nodeGeom->getOrCreateStateSet();
-        state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-        nodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices2->size()));
-        osg::VertexBufferObject* vboP = nodeGeom->getOrCreateVertexBufferObject();
-        vboP->setUsage(GL_STREAM_DRAW);
-        nodeGeom->setUseDisplayList(false);
-        nodeGeom->setUseVertexBufferObjects(true);
-        nodeGeom->setVertexArray(kinectVertices2);
-        nodeGeom->setColorArray(kinectColours2);
-        nodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-        kgeode->addDrawable(nodeGeom);
-        kgeode->dirtyBound();
-        //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
-        kinectgrp2->removeChild(0, 1);
-        kinectgrp2->addChild(kgeode);
-    }
-
-    //        frameXMinus[0][i] = x;
-    //        frameYMinus[0][i] = y;
-    //        frameZMinus[0][i] = z;
-    //    else
-    //    {
-    //        osg::Geode* kgeode = new osg::Geode();
-    //        kgeode->setCullingActive(false);
-    //        osg::Geometry* geometry = new osg::Geometry();
-    //        geometry->setUseDisplayList(false);
-    //        geometry->setUseVertexBufferObjects(true);
-    //        // geometry->setVertexArray(kinectVertices);
-    //        geometry->setVertexArray(kinectVertices);
-    //        geometry->setNormalArray(normals);
-    //        geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
-    //        geometry->setColorArray(kinectColours);
-    //        geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-    //        geometry->addPrimitiveSet(new osg::DrawArrays(GL_POINTS, 0, kinectVertices->size()));
-    //        //_root->removeChild(pointGeode);
-    //        //pointGeode = new Geode();
-    //        StateSet* ss = kgeode->getOrCreateStateSet();
-    //        ss->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-    //        kgeode->addDrawable(geometry);
-    //        kinectgrp->removeChild(0, 1);
-    //        kinectgrp->addChild(kgeode);
-    //        //_root->addChild(pointGeode);
-    //    }
-}
-
-
-void KinectDemo::ThirdLoop()
-{
-    if (!skeletonThreaded)
-    {
-        // if skeletons are to be displayed in coorinates relative to the camera, position of the camera is saved in Skeleton::camPos,camRot (one for all skeletons)
-        Skeleton::camPos = Vec3(kinectX, kinectY, kinectZ);
-        Skeleton::camPos2 = Vec3(kinect2X, kinect2Y, kinect2Z);
-        //  Skeleton::camPos = Vec3d(0, kinectY, 0);
-        float rotDegrees[3];
-        rotDegrees[0] = 0;
-        rotDegrees[1] = 0;
-        rotDegrees[2] = 0;
-        rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
-        rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
-        rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
-        Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
-        // Skeleton::camRot = rot;
-
-        if (Skeleton::moveWithCam)
-        {
-            //Matrixd camMat = PluginHelper::getWorldToObjectTransform(); //This will get us actual real world coordinates that the camera is at (not sure about how it does rotation)
-            Matrixd camMat = PluginHelper::getHeadMat(0); //This will get us actual real world coordinates that the camera is at (not sure about how it does rotation)
-            float cscale = 1; //Want to keep scale to actual Kinect which is is meters
-            Vec3 camTrans = camMat.getTrans();
-            Quat camQuad = camMat.getRotate();  //Rotation of cam will cause skeleton to be off center--need Fix!!
-            //double xOffset = (camTrans.x() / cscale);
-            //double yOffset = (camTrans.y() / cscale) + 3; //Added Offset of Skeleton so see a little ways from camera (i.e. 5 meters, works at this scale,only)
-            //double zOffset = (camTrans.z() / cscale);
-            double xOffset = camTrans.x();
-            double yOffset = camTrans.y(); //Added Offset of Skeleton so see a little ways from camera (i.e. 5 meters, works at this scale,only)
-            double zOffset = camTrans.z();
-            Skeleton::camPos = Vec3d(xOffset, yOffset, zOffset);
-            Skeleton::camRot = camQuad;
-        }
-
-        if (!kFreezeCloud)
-        {
-            while (skel_socket->recv(*sf))
-            {
-                //return;
-                // remove all the skeletons that are no longer reported by the server
-                for (std::map<int, Skeleton>::iterator it2 = mapIdSkel.begin(); it2 != mapIdSkel.end(); ++it2)
-                {
-                    bool found = false;
-
-                    for (int i = 0; i < sf->skeletons_size(); i++)
-                    {
-                        if (sf->skeletons(i).skeleton_id() == it2->first)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found)
-                    {
-                        mapIdSkel[it2->first].detach(_pointClouds[0]->switchNode);
-                    }
-                }
-
-                // update all skeletons' joints' positions
-                for (int i = 0; i < sf->skeletons_size(); i++)
-                {
-                    // Skeleton reported but not in the map -> create a new one
-                    if (mapIdSkel.count(sf->skeletons(i).skeleton_id()) == 0)
-                    {
-                        mapIdSkel[sf->skeletons(i).skeleton_id()] = Skeleton(); ///XXX remove Skeleton(); part
-                        // mapIdSkel[sf->skeletons(i).skeleton_id()].attach(_root);
-                        cerr << "Found Skeleton\n";
-                        mapIdSkel[sf->skeletons(i).skeleton_id()].attach(_pointClouds[0]->switchNode);
-                    }
-
-                    // Skeleton previously detached (stopped being reported), but is again reported -> reattach
-                    if (mapIdSkel[sf->skeletons(i).skeleton_id()].attached == false)
-                        mapIdSkel[sf->skeletons(i).skeleton_id()].attach(_pointClouds[0]->switchNode);
-
-                    for (int j = 0; j < sf->skeletons(i).joints_size(); j++)
-                    {
-                        mapIdSkel[sf->skeletons(i).skeleton_id()].update(
-                            sf->skeletons(i).joints(j).type(),
-                            sf->skeletons(i).joints(j).x(),
-                            sf->skeletons(i).joints(j).z(),
-                            sf->skeletons(i).joints(j).y(),
-                            sf->skeletons(i).joints(j).qx(),
-                            sf->skeletons(i).joints(j).qz(),
-                            sf->skeletons(i).joints(j).qy(),
-                            sf->skeletons(i).joints(j).qw());
-                    }
-                }
-            }
-        }
-    }
-
-    if (kShowPCloud && cloud_socket != NULL && !kinectThreaded && !kFreezeCloud)
-    {
-        showPointCloud();
-    }
-
-    if (kShowColor && false)
-    {
-        if (color_socket->recv(*cm))
-        {
-            for (int y = 0; y < 480; y++)
-            {
-                for (int x = 0; x < 640; x++)
-                {
-                    uint32_t packed = cm->pixels(y * 640 + x);
-                    color_pixels[640 * (479 - y) + x] = packed;
-                }
-            }
-        }
-    }
-
-    if (kShowDepth && false)
-    {
-        if (depth_socket->recv(*dm))
-        {
-            for (int y = 0; y < 480; y++)
-            {
-                for (int x = 0; x < 640; x++)
-                {
-                    int val = dm->depths(y * 640 + x);
-                    //              if (dpmap.count(val) == 0)
-                    //              {
-                    //                  osg::Vec4 color = getColorRGBDepth(val);
-                    //                  char rrr = (char)((float)color.r() * 255.0);
-                    //                  char ggg = (char)((float)color.g() * 255.0);
-                    //                  char bbb = (char)((float)color.b() * 255.0);
-                    //                  uint32_t packed = (((rrr << 0) | (ggg << 8) | (bbb << 16)) & 0x00FFFFFF);
-                    //                  dpmap[val] = packed;
-                    //              }
-                    depth_pixels[640 * (479 - y) + x] = dpmap[val];//packed;
-                }
-            }
-        }
-    }
-}
+//void KinectDemo::ThirdLoop()
+//{
+//    if (!skeletonThreaded)
+//    {
+//        // if skeletons are to be displayed in coorinates relative to the camera, position of the camera is saved in Skeleton::camPos,camRot (one for all skeletons)
+//        Skeleton::camPos = Vec3(kinectX, kinectY, kinectZ);
+//        Skeleton::camPos2 = Vec3(kinect2X, kinect2Y, kinect2Z);
+//        //  Skeleton::camPos = Vec3d(0, kinectY, 0);
+//        float rotDegrees[3];
+//        rotDegrees[0] = 0;
+//        rotDegrees[1] = 0;
+//        rotDegrees[2] = 0;
+//        rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
+//        rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
+//        rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
+//        Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
+//        // Skeleton::camRot = rot;
+//
+//        if (Skeleton::moveWithCam)
+//        {
+//            //Matrixd camMat = PluginHelper::getWorldToObjectTransform(); //This will get us actual real world coordinates that the camera is at (not sure about how it does rotation)
+//            Matrixd camMat = PluginHelper::getHeadMat(0); //This will get us actual real world coordinates that the camera is at (not sure about how it does rotation)
+//            float cscale = 1; //Want to keep scale to actual Kinect which is is meters
+//            Vec3 camTrans = camMat.getTrans();
+//            Quat camQuad = camMat.getRotate();  //Rotation of cam will cause skeleton to be off center--need Fix!!
+//            //double xOffset = (camTrans.x() / cscale);
+//            //double yOffset = (camTrans.y() / cscale) + 3; //Added Offset of Skeleton so see a little ways from camera (i.e. 5 meters, works at this scale,only)
+//            //double zOffset = (camTrans.z() / cscale);
+//            double xOffset = camTrans.x();
+//            double yOffset = camTrans.y(); //Added Offset of Skeleton so see a little ways from camera (i.e. 5 meters, works at this scale,only)
+//            double zOffset = camTrans.z();
+//            Skeleton::camPos = Vec3d(xOffset, yOffset, zOffset);
+//            Skeleton::camRot = camQuad;
+//        }
+//
+//        if (!kFreezeCloud)
+//        {
+//            while (skel_socket->recv(*sf))
+//            {
+//                //return;
+//                // remove all the skeletons that are no longer reported by the server
+//                for (std::map<int, Skeleton>::iterator it2 = mapIdSkel.begin(); it2 != mapIdSkel.end(); ++it2)
+//                {
+//                    bool found = false;
+//
+//                    for (int i = 0; i < sf->skeletons_size(); i++)
+//                    {
+//                        if (sf->skeletons(i).skeleton_id() == it2->first)
+//                        {
+//                            found = true;
+//                            break;
+//                        }
+//                    }
+//
+//                    if (!found)
+//                    {
+//                        mapIdSkel[it2->first].detach(_pointClouds[0]->switchNode);
+//                    }
+//                }
+//
+//                // update all skeletons' joints' positions
+//                for (int i = 0; i < sf->skeletons_size(); i++)
+//                {
+//                    // Skeleton reported but not in the map -> create a new one
+//                    if (mapIdSkel.count(sf->skeletons(i).skeleton_id()) == 0)
+//                    {
+//                        mapIdSkel[sf->skeletons(i).skeleton_id()] = Skeleton(); ///XXX remove Skeleton(); part
+//                        // mapIdSkel[sf->skeletons(i).skeleton_id()].attach(_root);
+//                        cerr << "Found Skeleton\n";
+//                        mapIdSkel[sf->skeletons(i).skeleton_id()].attach(_pointClouds[0]->switchNode);
+//                    }
+//
+//                    // Skeleton previously detached (stopped being reported), but is again reported -> reattach
+//                    if (mapIdSkel[sf->skeletons(i).skeleton_id()].attached == false)
+//                        mapIdSkel[sf->skeletons(i).skeleton_id()].attach(_pointClouds[0]->switchNode);
+//
+//                    for (int j = 0; j < sf->skeletons(i).joints_size(); j++)
+//                    {
+//                        mapIdSkel[sf->skeletons(i).skeleton_id()].update(
+//                            sf->skeletons(i).joints(j).type(),
+//                            sf->skeletons(i).joints(j).x(),
+//                            sf->skeletons(i).joints(j).z(),
+//                            sf->skeletons(i).joints(j).y(),
+//                            sf->skeletons(i).joints(j).qx(),
+//                            sf->skeletons(i).joints(j).qz(),
+//                            sf->skeletons(i).joints(j).qy(),
+//                            sf->skeletons(i).joints(j).qw());
+//                    }
+//                }
+//            }
+//        }
+//    }
+//
+//  //  if (kShowPCloud && cloud_socket != NULL && !kinectThreaded && !kFreezeCloud)
+//  //  {
+//  //      showPointCloud();
+//  //  }
+//
+//    if (kShowColor && false)
+//    {
+//        if (color_socket->recv(*cm))
+//        {
+//            for (int y = 0; y < 480; y++)
+//            {
+//                for (int x = 0; x < 640; x++)
+//                {
+//                    uint32_t packed = cm->pixels(y * 640 + x);
+//                    color_pixels[640 * (479 - y) + x] = packed;
+//                }
+//            }
+//        }
+//    }
+//
+//    if (kShowDepth && false)
+//    {
+//        if (depth_socket->recv(*dm))
+//        {
+//            for (int y = 0; y < 480; y++)
+//            {
+//                for (int x = 0; x < 640; x++)
+//                {
+//                    int val = dm->depths(y * 640 + x);
+//                    //              if (dpmap.count(val) == 0)
+//                    //              {
+//                    //                  osg::Vec4 color = getColorRGBDepth(val);
+//                    //                  char rrr = (char)((float)color.r() * 255.0);
+//                    //                  char ggg = (char)((float)color.g() * 255.0);
+//                    //                  char bbb = (char)((float)color.b() * 255.0);
+//                    //                  uint32_t packed = (((rrr << 0) | (ggg << 8) | (bbb << 16)) & 0x00FFFFFF);
+//                    //                  dpmap[val] = packed;
+//                    //              }
+//                    depth_pixels[640 * (479 - y) + x] = dpmap[val];//packed;
+//                }
+//            }
+//        }
+//    }
+//}
 
 void KinectDemo::cloudOff()
 {
-    if (!kinectThreaded)
+    for (int i = 0; i < kinects->size(); i++)
     {
-        if (cloud_socket) {
-            delete cloud_socket;
-            cloud_socket = NULL;
-        }
-
-        if (cloud_socket2) {
-            delete cloud_socket2;
-            cloud_socket2 = NULL;
-        }
-
-        if (kinectgrp)
-        {
-            pgm1->ref();
-            kinectgrp->removeChild(0, 1);
-            // _root->removeChild(kinectgrp);
-            SceneManager::instance()->getScene()->removeChild(kinectgrp);
-            kinectgrp = NULL;
-        }
-
-        if (kinectgrp2)
-        {
-            pgm1->ref();
-            kinectgrp2->removeChild(0, 1);
-            // _root->removeChild(kinectgrp);
-            SceneManager::instance()->getScene()->removeChild(kinectgrp2);
-            kinectgrp2 = NULL;
-        }
+        kinects->at(i)->cloudOff();
     }
-    else
-    {
-        _cloudThread->quit();
-        _cloudThread->cancel();
-    }
+
+    //    if (!kinectThreaded)
+    //    {
+    //        if (cloud_socket) {
+    //            delete cloud_socket;
+    //            cloud_socket = NULL;
+    //        }
+    //
+    //        if (cloud_socket2) {
+    //            delete cloud_socket2;
+    //            cloud_socket2 = NULL;
+    //        }
+    //
+    //        if (kinectgrp)
+    //        {
+    //            pgm1->ref();
+    //            kinectgrp->removeChild(0, 1);
+    //            // _root->removeChild(kinectgrp);
+    //            SceneManager::instance()->getScene()->removeChild(kinectgrp);
+    //            kinectgrp = NULL;
+    //        }
+    //
+    //        if (kinectgrp2)
+    //        {
+    //            pgm1->ref();
+    //            kinectgrp2->removeChild(0, 1);
+    //            // _root->removeChild(kinectgrp);
+    //            SceneManager::instance()->getScene()->removeChild(kinectgrp2);
+    //            kinectgrp2 = NULL;
+    //        }
+    //    }
+    //    else
+    //    {
+    //        _cloudThread->quit();
+    //        _cloudThread->cancel();
+    //    }
 }
 
 void KinectDemo::cloudOn()
 {
     if (kShowPCloud)
     {
-        if (!kinectThreaded)
-        {
-            if (!cloud_socket) cloud_socket = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
-
-            if (!cloud_socket2) cloud_socket2 = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud2"));
-
-            kinectgrp = new osg::Group();
-            osg::StateSet* state = kinectgrp->getOrCreateStateSet();
-            state->setAttribute(pgm1);
-            state->addUniform(new osg::Uniform("pointScale", initialPointScale));
-            state->addUniform(new osg::Uniform("globalAlpha", 1.0f));
-            float pscale = initialPointScale;
-            osg::Uniform*  _scaleUni = new osg::Uniform("pointScale", 1.0f * pscale);
-            kinectgrp->getOrCreateStateSet()->addUniform(_scaleUni);
-            _pointClouds[0]->switchNode->addChild(kinectgrp);
-            //bangKN
-            // SceneManager::instance()->getScene()->addChild(kinectgrp);
-            // _root->addChild(kinectgrp);
-            kinectgrp2 = new osg::Group();
-            state = kinectgrp2->getOrCreateStateSet();
-            state->setAttribute(pgm1);
-            state->addUniform(new osg::Uniform("pointScale", initialPointScale));
-            state->addUniform(new osg::Uniform("globalAlpha", 1.0f));
-            pscale = initialPointScale;
-            _scaleUni = new osg::Uniform("pointScale", 1.0f * pscale);
-            kinectgrp2->getOrCreateStateSet()->addUniform(_scaleUni);
-            _pointClouds[1]->switchNode->addChild(kinectgrp2);
-            kinectVertices = new osg::Vec3Array;
-            kinectColours = new osg::Vec4Array;
-            kinectVertices2 = new osg::Vec3Array;
-            kinectColours2 = new osg::Vec4Array;
-            ///        /* new */
-            ///        kgeode = new osg::Geode();
-            ///        kgeode->setCullingActive(false);
-            ///        kinectGeom = new osg::Geometry();
-            ///        state = kinectGeom->getOrCreateStateSet();
-            ///        state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-            ///        kinectDrawArrays = new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices->size());
-            ///        kinectGeom->addPrimitiveSet(kinectDrawArrays);
-            ///        osg::VertexBufferObject* vboP = kinectGeom->getOrCreateVertexBufferObject();
-            ///        vboP->setUsage(GL_STREAM_DRAW);
-            ///        kinectGeom->setUseDisplayList(false);
-            ///        kinectGeom->setUseVertexBufferObjects(true);
-            ///        kinectGeom->setVertexArray(kinectVertices);
-            ///        kinectGeom->setColorArray(kinectColours);
-            ///        kinectGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-            ///        kgeode->addDrawable(kinectGeom);
-            ///        kgeode->dirtyBound();
-            ///        //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
-            ///        //kinectgrp->removeChild(0, 1);
-            ///        kinectgrp->addChild(kgeode);
-            /////
-            /////       _root->addChild(kgeode);
-            ///        /* end new */
-        }
-        else
-        {
-            kinects = new std::vector<KinectObject*>();
-            KinectObject* kinect = new KinectObject();
-            kinect->cloudOn();
-            kinects->push_back(kinect);
-
-            // XXKO cloudon
-        }
+        //       if (!kinectThreaded)
+        //       {
+        //           if (!cloud_socket) cloud_socket = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
+        //           if (!cloud_socket2) cloud_socket2 = new SubSocket<RemoteKinect::PointCloud> (context, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud2"));
+        //           kinectgrp = new osg::Group();
+        //           osg::StateSet* state = kinectgrp->getOrCreateStateSet();
+        //           state->setAttribute(pgm1);
+        //           state->addUniform(new osg::Uniform("pointScale", initialPointScale));
+        //           state->addUniform(new osg::Uniform("globalAlpha", 1.0f));
+        //           float pscale = initialPointScale;
+        //           osg::Uniform*  _scaleUni = new osg::Uniform("pointScale", 1.0f * pscale);
+        //           kinectgrp->getOrCreateStateSet()->addUniform(_scaleUni);
+        //           _pointClouds[0]->switchNode->addChild(kinectgrp);
+        //           //bangKN
+        //           // SceneManager::instance()->getScene()->addChild(kinectgrp);
+        //           // _root->addChild(kinectgrp);
+        //           kinectgrp2 = new osg::Group();
+        //           state = kinectgrp2->getOrCreateStateSet();
+        //           state->setAttribute(pgm1);
+        //           state->addUniform(new osg::Uniform("pointScale", initialPointScale));
+        //           state->addUniform(new osg::Uniform("globalAlpha", 1.0f));
+        //           pscale = initialPointScale;
+        //           _scaleUni = new osg::Uniform("pointScale", 1.0f * pscale);
+        //           kinectgrp2->getOrCreateStateSet()->addUniform(_scaleUni);
+        //           _pointClouds[1]->switchNode->addChild(kinectgrp2);
+        //           kinectVertices = new osg::Vec3Array;
+        //           kinectColours = new osg::Vec4Array;
+        //           kinectVertices2 = new osg::Vec3Array;
+        //           kinectColours2 = new osg::Vec4Array;
+        //           ///        /* new */
+        //           ///        kgeode = new osg::Geode();
+        //           ///        kgeode->setCullingActive(false);
+        //           ///        kinectGeom = new osg::Geometry();
+        //           ///        state = kinectGeom->getOrCreateStateSet();
+        //           ///        state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+        //           ///        kinectDrawArrays = new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices->size());
+        //           ///        kinectGeom->addPrimitiveSet(kinectDrawArrays);
+        //           ///        osg::VertexBufferObject* vboP = kinectGeom->getOrCreateVertexBufferObject();
+        //           ///        vboP->setUsage(GL_STREAM_DRAW);
+        //           ///        kinectGeom->setUseDisplayList(false);
+        //           ///        kinectGeom->setUseVertexBufferObjects(true);
+        //           ///        kinectGeom->setVertexArray(kinectVertices);
+        //           ///        kinectGeom->setColorArray(kinectColours);
+        //           ///        kinectGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+        //           ///        kgeode->addDrawable(kinectGeom);
+        //           ///        kgeode->dirtyBound();
+        //           ///        //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
+        //           ///        //kinectgrp->removeChild(0, 1);
+        //           ///        kinectgrp->addChild(kgeode);
+        //           /////
+        //           /////       _root->addChild(kgeode);
+        //           ///        /* end new */
+        //       }
+        //       else
+        //       {
+        KinectObject* kinect = new KinectObject();
+        kinect->cloudOn();
+        kinects->push_back(kinect);
+        //      }
     }
 }
 
@@ -1701,485 +1680,485 @@ void KinectDemo::ExportPointCloud()
         fclose(pFile);
     }
 }
-void KinectDemo::createSceneObject()
-{
-    cerr << "Creating SceneObject\n";
-    PointCloud* newModel = new PointCloud();
-    _pointClouds.push_back(newModel);
-    string name = "test";
-    int i = _pointClouds.size() - 1;
-
-    if (i == -1) return;
-
-    // float currentScale = _pointClouds[i]->scale;
-    float currentScale = 1;
-    SceneObject* so;
-    so = new SceneObject(name, false, false, false, true, false);
-    osg::Switch* switchNode = new osg::Switch();
-    so->addChild(switchNode);
-    PluginHelper::registerSceneObject(so, "Test");
-    so->attachToScene();
-    //Add currentNode to switchNode
-    // _models3d[i]->currentModelNode = modelNode;
-    cerr << "here\n";
-
-    //  switchNode->addChild(kinectgrp);
-    if (i == 0)
-    {
-        //  switchNode->addChild(_modelFileNode4);
-        if (false)
-        {
-            Vec3d poz0(kinectX, kinectY, kinectZ);
-            Box* sphereShape = new Box(poz0, 50.0);
-            ShapeDrawable* ggg2 = new ShapeDrawable(sphereShape);
-            ggg2->setColor(Vec4(1, 1, 1, 1));
-            osg::Geode* boxGeode = new osg::Geode;
-            boxGeode->addDrawable(ggg2);
-            switchNode->addChild(boxGeode);
-        }
-
-        if (ConfigManager::getBool("Plugin.KinectDemo.ShowKinectModel"))
-        {
-            //Loads Kinect Obj file
-            Matrixd scale;
-            double snum = 1;
-            scale.makeScale(snum, snum, snum);
-            MatrixTransform* modelScaleTrans = new MatrixTransform();
-            modelScaleTrans->setMatrix(scale);
-            modelScaleTrans->addChild(_modelFileNode1);
-            MatrixTransform* rotate = new osg::MatrixTransform();
-            float rotDegrees[3];
-            rotDegrees[0] = -90;
-            rotDegrees[1] = 0;
-            rotDegrees[2] = 180;
-            rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
-            rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
-            rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
-            Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
-            Matrix rotMat;
-            rotMat.makeRotate(rot);
-            rotate->setMatrix(rotMat);
-            rotate->addChild(modelScaleTrans);
-            MatrixTransform* translate = new osg::MatrixTransform();
-            osg::Matrixd tmat;
-            Vec3 pos = Vec3(kinectX, kinectY, kinectZ);
-            tmat.makeTranslate(pos);
-            translate->setMatrix(tmat);
-            translate->addChild(rotate);
-            switchNode->addChild(translate);
-        }
-
-        if (ConfigManager::getBool("Plugin.KinectDemo.ShowScreenFrames"))
-        {
-            //Draw Configured Screens
-            int numWindows = ScreenConfig::instance()->getNumWindows();
-            float width;
-            float height;
-            float h;
-            float p;
-            float r;
-            Vec3 offsetScreen;
-            cerr << "NumWindows: " << numWindows << endl;
-
-            //TODO:Get Screen Info from Config file
-            for (int j = 0; j < numWindows; j++)
-            {
-                ScreenInfo* si = ScreenConfig::instance()->getScreenInfo(j);
-                width = si->width;
-                height = si->height;
-                h = si->h;
-                p = si->p;
-                r = si->r;
-                offsetScreen = si->xyz;
-                //Create Quad Face
-                //  float width = 300;
-                //  float height = 500;
-                Vec3 pos = Vec3(-(width / 2), 0, -(height / 2));
-                Vec4f color = Vec4f(0, 0.42, 0.92, 1);
-                //Ofset Pos
-                pos += offsetScreen;
-                osg::Geometry* geo = new osg::Geometry();
-                osg::Vec3Array* verts = new osg::Vec3Array();
-                verts->push_back(pos);
-                verts->push_back(pos + osg::Vec3(width, 0, 0));
-                verts->push_back(pos + osg::Vec3(width, 0, height));
-                verts->push_back(pos + osg::Vec3(0, 0, height));
-                geo->setVertexArray(verts);
-                osg::DrawElementsUInt* ele = new osg::DrawElementsUInt(
-                    osg::PrimitiveSet::QUADS, 0);
-                ele->push_back(0);
-                ele->push_back(1);
-                ele->push_back(2);
-                ele->push_back(3);
-                geo->addPrimitiveSet(ele);
-                Geode* fgeode = new Geode();
-                StateSet* state(fgeode->getOrCreateStateSet());
-                Material* mat(new Material);
-                mat->setColorMode(Material::DIFFUSE);
-                mat->setDiffuse(Material::FRONT_AND_BACK, color);
-                state->setAttribute(mat);
-                state->setRenderingHint(StateSet::TRANSPARENT_BIN);
-                state->setMode(GL_BLEND, StateAttribute::ON);
-                state->setMode(GL_LIGHTING, StateAttribute::OFF);
-                osg::PolygonMode* polymode = new osg::PolygonMode;
-                polymode->setMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE);
-                state->setAttributeAndModes(polymode, osg::StateAttribute::OVERRIDE | osg::StateAttribute::ON);
-                fgeode->setStateSet(state);
-                // _annotations[inc]->geo = geo;
-                fgeode->addDrawable(geo);
-                float rotDegrees[3];
-                rotDegrees[0] = h;
-                rotDegrees[1] = p;
-                rotDegrees[2] = r;
-                rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
-                rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
-                rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
-                Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
-                MatrixTransform* rotate = new osg::MatrixTransform();
-                Matrix rotMat;
-                rotMat.makeRotate(rot);
-                rotate->setMatrix(rotMat);
-                rotate->addChild(fgeode);
-                switchNode->addChild(rotate);
-            }
-
-            if (ConfigManager::getBool("Plugin.KinectDemo.ShowKinectFOV"))
-            {
-                //Draw Kinect FOV
-                float width;
-                float height;
-                Vec3 offsetScreen = Vec3(0, 500, 0);
-                Vec3 pos;
-                Vec4f color = Vec4f(0, 0.42, 0.92, 1);
-                //Create Quad Face
-                width = 543;
-                height = 394;
-                pos = Vec3(-(width / 2), 0, -(height / 2));
-                pos += Vec3(kinectX, kinectY, kinectZ);
-                pos += offsetScreen;
-                osg::Geometry* geo = new osg::Geometry();
-                osg::Vec3Array* verts = new osg::Vec3Array();
-                verts->push_back(pos);
-                verts->push_back(pos + osg::Vec3(width, 0, 0));
-                verts->push_back(pos + osg::Vec3(width, 0, height));
-                verts->push_back(pos + osg::Vec3(0, 0, height));
-                //do it Again
-                width = 3800.6;
-                height = 2756;
-                offsetScreen = Vec3(0, 3500, 0);
-                pos = Vec3(-(width / 2), 0, -(height / 2));
-                pos += Vec3(kinectX, kinectY, kinectZ);
-                pos += offsetScreen;
-                verts->push_back(pos);
-                verts->push_back(pos + osg::Vec3(width, 0, 0));
-                verts->push_back(pos + osg::Vec3(width, 0, height));
-                verts->push_back(pos + osg::Vec3(0, 0, height));
-                //....................................
-                int size = verts->size() / 2;
-                Geometry* geom = new Geometry();
-                Geometry* tgeom = new Geometry();
-                Geode* fgeode = new Geode();
-                Geode* lgeode = new Geode();
-                geom->setVertexArray(verts);
-                tgeom->setVertexArray(verts);
-
-                for (int n = 0; n < size; n++)
-                {
-                    DrawElementsUInt* face = new DrawElementsUInt(PrimitiveSet::QUADS, 0);
-                    face->push_back(n);
-                    face->push_back(n + size);
-                    face->push_back(((n + 1) % size) + size);
-                    face->push_back((n + 1) % size);
-                    geom->addPrimitiveSet(face);
-                }
-
-                StateSet* state(fgeode->getOrCreateStateSet());
-                Material* mat(new Material);
-                mat->setColorMode(Material::DIFFUSE);
-                mat->setDiffuse(Material::FRONT_AND_BACK, color);
-                state->setAttribute(mat);
-                state->setRenderingHint(StateSet::OPAQUE_BIN);
-                state->setMode(GL_BLEND, StateAttribute::ON);
-                state->setMode(GL_LIGHTING, StateAttribute::OFF);
-                osg::PolygonMode* polymode = new osg::PolygonMode;
-                polymode->setMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE);
-                state->setAttributeAndModes(polymode, osg::StateAttribute::OVERRIDE | osg::StateAttribute::ON);
-                fgeode->setStateSet(state);
-                fgeode->addDrawable(geom);
-
-                if (false)
-                {
-                    geo->setVertexArray(verts);
-                    osg::DrawElementsUInt* ele = new osg::DrawElementsUInt(
-                        osg::PrimitiveSet::QUADS, 0);
-                    ele->push_back(0);
-                    ele->push_back(1);
-                    ele->push_back(2);
-                    ele->push_back(3);
-                    ele->push_back(4);
-                    ele->push_back(5);
-                    ele->push_back(6);
-                    ele->push_back(7);
-                    geo->addPrimitiveSet(ele);
-                    Geode* fgeode = new Geode();
-                    StateSet* state(fgeode->getOrCreateStateSet());
-                    Material* mat(new Material);
-                    mat->setColorMode(Material::DIFFUSE);
-                    mat->setDiffuse(Material::FRONT_AND_BACK, color);
-                    state->setAttribute(mat);
-                    state->setRenderingHint(StateSet::TRANSPARENT_BIN);
-                    state->setMode(GL_BLEND, StateAttribute::ON);
-                    state->setMode(GL_LIGHTING, StateAttribute::OFF);
-                    osg::PolygonMode* polymode = new osg::PolygonMode;
-                    polymode->setMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE);
-                    state->setAttributeAndModes(polymode, osg::StateAttribute::OVERRIDE | osg::StateAttribute::ON);
-                    fgeode->setStateSet(state);
-                    // _annotations[inc]->geo = geo;
-                    fgeode->addDrawable(geo);
-                }
-
-                float rotDegrees[3];
-                rotDegrees[0] = 0;
-                rotDegrees[1] = 0;
-                rotDegrees[2] = 0;
-                rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
-                rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
-                rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
-                Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
-                MatrixTransform* rotate = new osg::MatrixTransform();
-                Matrix rotMat;
-                rotMat.makeRotate(rot);
-                rotate->setMatrix(rotMat);
-                rotate->addChild(fgeode);
-                switchNode->addChild(rotate);
-            }
-        }
-    }
-
-    _pointClouds[i]->switchNode = switchNode;
-    //Add menu system
-    so->setNavigationOn(true);
-    so->setMovable(false);
-    so->addMoveMenuItem();
-    so->addNavigationMenuItem();
-    float min = 0.0001;
-    float max = 1;
-    so->addScaleMenuItem("Scale", min, max, currentScale);
-    SubMenu* sm = new SubMenu("Position");
-    so->addMenuItem(sm);
-    MenuButton* mb;
-    mb = new MenuButton("Load");
-    mb->setCallback(this);
-    sm->addItem(mb);
-    SubMenu* savemenu = new SubMenu("Save");
-    sm->addItem(savemenu);
-    mb = new MenuButton("Save");
-    mb->setCallback(this);
-    savemenu->addItem(mb);
-    _pointClouds[i]->saveMap = mb;
-    mb = new MenuButton("Save New Kml");
-    mb->setCallback(this);
-    savemenu->addItem(mb);
-    _pointClouds[i]->saveNewMap = mb;
-    mb = new MenuButton("Reset to Origin");
-    mb->setCallback(this);
-    so->addMenuItem(mb);
-    _pointClouds[i]->resetMap = mb;
-    MenuCheckbox* mc;
-    mc = new MenuCheckbox("Active", false);
-    mc->setCallback(this);
-    so->addMenuItem(mc);
-    _pointClouds[i]->activeMap = mc;
-    mc = new MenuCheckbox("Visible", true);
-    mc->setCallback(this);
-    so->addMenuItem(mc);
-    _pointClouds[i]->visibleMap = mc;
-    _pointClouds[i]->visible = true;
-    float rValue = 0;
-    min = -1;
-    max = 1;
-    MenuRangeValue* rt = new MenuRangeValue("rx", min, max, rValue);
-    rt->setCallback(this);
-    so->addMenuItem(rt);
-    _pointClouds[i]->rxMap = rt;
-    rt = new MenuRangeValue("ry", min, max, rValue);
-    rt->setCallback(this);
-    so->addMenuItem(rt);
-    _pointClouds[i]->ryMap = rt;
-    rt = new MenuRangeValue("rz", min, max, rValue);
-    rt->setCallback(this);
-    so->addMenuItem(rt);
-    _pointClouds[i]->rzMap = rt;
-    /*
-            mc = new MenuCheckbox("Panel Visible",true);
-            mc->setCallback(this);
-            so->addMenuItem(mc);
-     //           _query[q]->artifacts[inc]->model->pVisibleMap = mc;
-               // _query[q]->artifacts[inc]->model->pVisible = true;
-    */
-    //Quat currentRot = _pointClouds[i]->rot;
-    //Vec3 currentPos = _pointClouds[i]->pos;
-    //Vec3 orig = currentPos;
-    //cerr << "Pos: " << orig.x() << " " << orig.y() << " " << orig.z() << "\n";
-    // so->setPosition(currentPos);
-    so->setScale(1);
-
-    if (i == 0)
-    {
-        Vec3 currentPos = Vec3(0, 0, 0);
-        float rotDegrees[3];
-        rotDegrees[0] = 0;
-        rotDegrees[1] = 0;
-        rotDegrees[2] = 180;
-        rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
-        rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
-        rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
-        Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
-        //so->setRotation(rot);
-        //so->setPosition(currentPos);
-    }
-
-    _pointClouds[i]->so = so;
-    _pointClouds[i]->pos = so->getPosition();
-    _pointClouds[i]->rot = so->getRotation();
-    _pointClouds[i]->active = false;
-    _pointClouds[i]->loaded = true;
-}
-
-void KinectDemo::createSceneObject2()
-{
-    cerr << "Creating SceneObject for second kinect\n";
-    PointCloud* newModel = new PointCloud();
-    _pointClouds.push_back(newModel);
-    string name = "test2";
-    int i = _pointClouds.size() - 1;
-
-    if (i == -1) return;
-
-    // float currentScale = _pointClouds[i]->scale;
-    float currentScale = 1;
-    SceneObject* so;
-    so = new SceneObject(name, false, false, false, true, false);
-    osg::Switch* switchNode = new osg::Switch();
-    so->addChild(switchNode);
-    PluginHelper::registerSceneObject(so, "Test2");
-    so->attachToScene();
-    //Add currentNode to switchNode
-    // _models3d[i]->currentModelNode = modelNode;
-    cerr << "here2\n";
-
-    //  switchNode->addChild(kinectgrp);
-    if (i == 1)
-    {
-        if (ConfigManager::getBool("Plugin.KinectDemo.ShowKinectModel"))
-        {
-            //Loads Kinect Obj file
-            Matrixd scale;
-            double snum = 1;
-            scale.makeScale(snum, snum, snum);
-            MatrixTransform* modelScaleTrans = new MatrixTransform();
-            modelScaleTrans->setMatrix(scale);
-            modelScaleTrans->addChild(_modelFileNode1);
-            MatrixTransform* rotate = new osg::MatrixTransform();
-            float rotDegrees[3];
-            rotDegrees[0] = -90;
-            rotDegrees[1] = 0;
-            rotDegrees[2] = 180;
-            rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
-            rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
-            rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
-            Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
-            Matrix rotMat;
-            rotMat.makeRotate(rot);
-            rotate->setMatrix(rotMat);
-            rotate->addChild(modelScaleTrans);
-            MatrixTransform* translate = new osg::MatrixTransform();
-            osg::Matrixd tmat;
-            Vec3 pos = Vec3(kinectX + 1000, kinectY, kinectZ);
-            tmat.makeTranslate(pos);
-            translate->setMatrix(tmat);
-            translate->addChild(rotate);
-            switchNode->addChild(translate);
-        }
-    }
-
-    _pointClouds[i]->switchNode = switchNode;
-    //Add menu system
-    so->setNavigationOn(true);
-    so->setMovable(false);
-    so->addMoveMenuItem();
-    so->addNavigationMenuItem();
-    float min = 0.0001;
-    float max = 1;
-    so->addScaleMenuItem("Scale", min, max, currentScale);
-    SubMenu* sm = new SubMenu("Position");
-    so->addMenuItem(sm);
-    MenuButton* mb;
-    mb = new MenuButton("Load");
-    mb->setCallback(this);
-    sm->addItem(mb);
-    SubMenu* savemenu = new SubMenu("Save");
-    sm->addItem(savemenu);
-    mb = new MenuButton("Save");
-    mb->setCallback(this);
-    savemenu->addItem(mb);
-    _pointClouds[i]->saveMap = mb;
-    mb = new MenuButton("Save New Kml");
-    mb->setCallback(this);
-    savemenu->addItem(mb);
-    _pointClouds[i]->saveNewMap = mb;
-    mb = new MenuButton("Reset to Origin");
-    mb->setCallback(this);
-    so->addMenuItem(mb);
-    _pointClouds[i]->resetMap = mb;
-    MenuCheckbox* mc;
-    mc = new MenuCheckbox("Active", false);
-    mc->setCallback(this);
-    so->addMenuItem(mc);
-    _pointClouds[i]->activeMap = mc;
-    mc = new MenuCheckbox("Visible", true);
-    mc->setCallback(this);
-    so->addMenuItem(mc);
-    _pointClouds[i]->visibleMap = mc;
-    _pointClouds[i]->visible = true;
-    float rValue = 0;
-    min = -1;
-    max = 1;
-    MenuRangeValue* rt = new MenuRangeValue("rx", min, max, rValue);
-    rt->setCallback(this);
-    so->addMenuItem(rt);
-    _pointClouds[i]->rxMap = rt;
-    rt = new MenuRangeValue("ry", min, max, rValue);
-    rt->setCallback(this);
-    so->addMenuItem(rt);
-    _pointClouds[i]->ryMap = rt;
-    rt = new MenuRangeValue("rz", min, max, rValue);
-    rt->setCallback(this);
-    so->addMenuItem(rt);
-    _pointClouds[i]->rzMap = rt;
-    so->setScale(1);
-
-    if (i == 1)
-    {
-        Vec3 currentPos = Vec3(0, 0, 0);
-        float rotDegrees[3];
-        rotDegrees[0] = 0;
-        rotDegrees[1] = 0;
-        rotDegrees[2] = 180;
-        rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
-        rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
-        rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
-        Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
-        //so->setRotation(rot);
-        //so->setPosition(currentPos);
-    }
-
-    _pointClouds[i]->so = so;
-    _pointClouds[i]->pos = so->getPosition();
-    _pointClouds[i]->rot = so->getRotation();
-    _pointClouds[i]->active = false;
-    _pointClouds[i]->loaded = true;
-}
+//void KinectDemo::createSceneObject()
+//{
+//    cerr << "Creating SceneObject\n";
+//    PointCloud* newModel = new PointCloud();
+//    _pointClouds.push_back(newModel);
+//    string name = "test";
+//    int i = _pointClouds.size() - 1;
+//
+//    if (i == -1) return;
+//
+//    // float currentScale = _pointClouds[i]->scale;
+//    float currentScale = 1;
+//    SceneObject* so;
+//    so = new SceneObject(name, false, false, false, true, false);
+//    osg::Switch* switchNode = new osg::Switch();
+//    so->addChild(switchNode);
+//    PluginHelper::registerSceneObject(so, "Test");
+//    so->attachToScene();
+//    //Add currentNode to switchNode
+//    // _models3d[i]->currentModelNode = modelNode;
+//    cerr << "here\n";
+//
+//    //  switchNode->addChild(kinectgrp);
+//    if (i == 0)
+//    {
+//        //  switchNode->addChild(_modelFileNode4);
+//        if (false)
+//        {
+//            Vec3d poz0(kinectX, kinectY, kinectZ);
+//            Box* sphereShape = new Box(poz0, 50.0);
+//            ShapeDrawable* ggg2 = new ShapeDrawable(sphereShape);
+//            ggg2->setColor(Vec4(1, 1, 1, 1));
+//            osg::Geode* boxGeode = new osg::Geode;
+//            boxGeode->addDrawable(ggg2);
+//            switchNode->addChild(boxGeode);
+//        }
+//
+//        if (ConfigManager::getBool("Plugin.KinectDemo.ShowKinectModel"))
+//        {
+//            //Loads Kinect Obj file
+//            Matrixd scale;
+//            double snum = 1;
+//            scale.makeScale(snum, snum, snum);
+//            MatrixTransform* modelScaleTrans = new MatrixTransform();
+//            modelScaleTrans->setMatrix(scale);
+//            modelScaleTrans->addChild(_modelFileNode1);
+//            MatrixTransform* rotate = new osg::MatrixTransform();
+//            float rotDegrees[3];
+//            rotDegrees[0] = -90;
+//            rotDegrees[1] = 0;
+//            rotDegrees[2] = 180;
+//            rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
+//            rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
+//            rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
+//            Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
+//            Matrix rotMat;
+//            rotMat.makeRotate(rot);
+//            rotate->setMatrix(rotMat);
+//            rotate->addChild(modelScaleTrans);
+//            MatrixTransform* translate = new osg::MatrixTransform();
+//            osg::Matrixd tmat;
+//            Vec3 pos = Vec3(kinectX, kinectY, kinectZ);
+//            tmat.makeTranslate(pos);
+//            translate->setMatrix(tmat);
+//            translate->addChild(rotate);
+//            switchNode->addChild(translate);
+//        }
+//
+//        if (ConfigManager::getBool("Plugin.KinectDemo.ShowScreenFrames"))
+//        {
+//            //Draw Configured Screens
+//            int numWindows = ScreenConfig::instance()->getNumWindows();
+//            float width;
+//            float height;
+//            float h;
+//            float p;
+//            float r;
+//            Vec3 offsetScreen;
+//            cerr << "NumWindows: " << numWindows << endl;
+//
+//            //TODO:Get Screen Info from Config file
+//            for (int j = 0; j < numWindows; j++)
+//            {
+//                ScreenInfo* si = ScreenConfig::instance()->getScreenInfo(j);
+//                width = si->width;
+//                height = si->height;
+//                h = si->h;
+//                p = si->p;
+//                r = si->r;
+//                offsetScreen = si->xyz;
+//                //Create Quad Face
+//                //  float width = 300;
+//                //  float height = 500;
+//                Vec3 pos = Vec3(-(width / 2), 0, -(height / 2));
+//                Vec4f color = Vec4f(0, 0.42, 0.92, 1);
+//                //Ofset Pos
+//                pos += offsetScreen;
+//                osg::Geometry* geo = new osg::Geometry();
+//                osg::Vec3Array* verts = new osg::Vec3Array();
+//                verts->push_back(pos);
+//                verts->push_back(pos + osg::Vec3(width, 0, 0));
+//                verts->push_back(pos + osg::Vec3(width, 0, height));
+//                verts->push_back(pos + osg::Vec3(0, 0, height));
+//                geo->setVertexArray(verts);
+//                osg::DrawElementsUInt* ele = new osg::DrawElementsUInt(
+//                    osg::PrimitiveSet::QUADS, 0);
+//                ele->push_back(0);
+//                ele->push_back(1);
+//                ele->push_back(2);
+//                ele->push_back(3);
+//                geo->addPrimitiveSet(ele);
+//                Geode* fgeode = new Geode();
+//                StateSet* state(fgeode->getOrCreateStateSet());
+//                Material* mat(new Material);
+//                mat->setColorMode(Material::DIFFUSE);
+//                mat->setDiffuse(Material::FRONT_AND_BACK, color);
+//                state->setAttribute(mat);
+//                state->setRenderingHint(StateSet::TRANSPARENT_BIN);
+//                state->setMode(GL_BLEND, StateAttribute::ON);
+//                state->setMode(GL_LIGHTING, StateAttribute::OFF);
+//                osg::PolygonMode* polymode = new osg::PolygonMode;
+//                polymode->setMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE);
+//                state->setAttributeAndModes(polymode, osg::StateAttribute::OVERRIDE | osg::StateAttribute::ON);
+//                fgeode->setStateSet(state);
+//                // _annotations[inc]->geo = geo;
+//                fgeode->addDrawable(geo);
+//                float rotDegrees[3];
+//                rotDegrees[0] = h;
+//                rotDegrees[1] = p;
+//                rotDegrees[2] = r;
+//                rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
+//                rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
+//                rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
+//                Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
+//                MatrixTransform* rotate = new osg::MatrixTransform();
+//                Matrix rotMat;
+//                rotMat.makeRotate(rot);
+//                rotate->setMatrix(rotMat);
+//                rotate->addChild(fgeode);
+//                switchNode->addChild(rotate);
+//            }
+//
+//            if (ConfigManager::getBool("Plugin.KinectDemo.ShowKinectFOV"))
+//            {
+//                //Draw Kinect FOV
+//                float width;
+//                float height;
+//                Vec3 offsetScreen = Vec3(0, 500, 0);
+//                Vec3 pos;
+//                Vec4f color = Vec4f(0, 0.42, 0.92, 1);
+//                //Create Quad Face
+//                width = 543;
+//                height = 394;
+//                pos = Vec3(-(width / 2), 0, -(height / 2));
+//                pos += Vec3(kinectX, kinectY, kinectZ);
+//                pos += offsetScreen;
+//                osg::Geometry* geo = new osg::Geometry();
+//                osg::Vec3Array* verts = new osg::Vec3Array();
+//                verts->push_back(pos);
+//                verts->push_back(pos + osg::Vec3(width, 0, 0));
+//                verts->push_back(pos + osg::Vec3(width, 0, height));
+//                verts->push_back(pos + osg::Vec3(0, 0, height));
+//                //do it Again
+//                width = 3800.6;
+//                height = 2756;
+//                offsetScreen = Vec3(0, 3500, 0);
+//                pos = Vec3(-(width / 2), 0, -(height / 2));
+//                pos += Vec3(kinectX, kinectY, kinectZ);
+//                pos += offsetScreen;
+//                verts->push_back(pos);
+//                verts->push_back(pos + osg::Vec3(width, 0, 0));
+//                verts->push_back(pos + osg::Vec3(width, 0, height));
+//                verts->push_back(pos + osg::Vec3(0, 0, height));
+//                //....................................
+//                int size = verts->size() / 2;
+//                Geometry* geom = new Geometry();
+//                Geometry* tgeom = new Geometry();
+//                Geode* fgeode = new Geode();
+//                Geode* lgeode = new Geode();
+//                geom->setVertexArray(verts);
+//                tgeom->setVertexArray(verts);
+//
+//                for (int n = 0; n < size; n++)
+//                {
+//                    DrawElementsUInt* face = new DrawElementsUInt(PrimitiveSet::QUADS, 0);
+//                    face->push_back(n);
+//                    face->push_back(n + size);
+//                    face->push_back(((n + 1) % size) + size);
+//                    face->push_back((n + 1) % size);
+//                    geom->addPrimitiveSet(face);
+//                }
+//
+//                StateSet* state(fgeode->getOrCreateStateSet());
+//                Material* mat(new Material);
+//                mat->setColorMode(Material::DIFFUSE);
+//                mat->setDiffuse(Material::FRONT_AND_BACK, color);
+//                state->setAttribute(mat);
+//                state->setRenderingHint(StateSet::OPAQUE_BIN);
+//                state->setMode(GL_BLEND, StateAttribute::ON);
+//                state->setMode(GL_LIGHTING, StateAttribute::OFF);
+//                osg::PolygonMode* polymode = new osg::PolygonMode;
+//                polymode->setMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE);
+//                state->setAttributeAndModes(polymode, osg::StateAttribute::OVERRIDE | osg::StateAttribute::ON);
+//                fgeode->setStateSet(state);
+//                fgeode->addDrawable(geom);
+//
+//                if (false)
+//                {
+//                    geo->setVertexArray(verts);
+//                    osg::DrawElementsUInt* ele = new osg::DrawElementsUInt(
+//                        osg::PrimitiveSet::QUADS, 0);
+//                    ele->push_back(0);
+//                    ele->push_back(1);
+//                    ele->push_back(2);
+//                    ele->push_back(3);
+//                    ele->push_back(4);
+//                    ele->push_back(5);
+//                    ele->push_back(6);
+//                    ele->push_back(7);
+//                    geo->addPrimitiveSet(ele);
+//                    Geode* fgeode = new Geode();
+//                    StateSet* state(fgeode->getOrCreateStateSet());
+//                    Material* mat(new Material);
+//                    mat->setColorMode(Material::DIFFUSE);
+//                    mat->setDiffuse(Material::FRONT_AND_BACK, color);
+//                    state->setAttribute(mat);
+//                    state->setRenderingHint(StateSet::TRANSPARENT_BIN);
+//                    state->setMode(GL_BLEND, StateAttribute::ON);
+//                    state->setMode(GL_LIGHTING, StateAttribute::OFF);
+//                    osg::PolygonMode* polymode = new osg::PolygonMode;
+//                    polymode->setMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE);
+//                    state->setAttributeAndModes(polymode, osg::StateAttribute::OVERRIDE | osg::StateAttribute::ON);
+//                    fgeode->setStateSet(state);
+//                    // _annotations[inc]->geo = geo;
+//                    fgeode->addDrawable(geo);
+//                }
+//
+//                float rotDegrees[3];
+//                rotDegrees[0] = 0;
+//                rotDegrees[1] = 0;
+//                rotDegrees[2] = 0;
+//                rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
+//                rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
+//                rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
+//                Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
+//                MatrixTransform* rotate = new osg::MatrixTransform();
+//                Matrix rotMat;
+//                rotMat.makeRotate(rot);
+//                rotate->setMatrix(rotMat);
+//                rotate->addChild(fgeode);
+//                switchNode->addChild(rotate);
+//            }
+//        }
+//    }
+//
+//    _pointClouds[i]->switchNode = switchNode;
+//    //Add menu system
+//    so->setNavigationOn(true);
+//    so->setMovable(false);
+//    so->addMoveMenuItem();
+//    so->addNavigationMenuItem();
+//    float min = 0.0001;
+//    float max = 1;
+//    so->addScaleMenuItem("Scale", min, max, currentScale);
+//    SubMenu* sm = new SubMenu("Position");
+//    so->addMenuItem(sm);
+//    MenuButton* mb;
+//    mb = new MenuButton("Load");
+//    mb->setCallback(this);
+//    sm->addItem(mb);
+//    SubMenu* savemenu = new SubMenu("Save");
+//    sm->addItem(savemenu);
+//    mb = new MenuButton("Save");
+//    mb->setCallback(this);
+//    savemenu->addItem(mb);
+//    _pointClouds[i]->saveMap = mb;
+//    mb = new MenuButton("Save New Kml");
+//    mb->setCallback(this);
+//    savemenu->addItem(mb);
+//    _pointClouds[i]->saveNewMap = mb;
+//    mb = new MenuButton("Reset to Origin");
+//    mb->setCallback(this);
+//    so->addMenuItem(mb);
+//    _pointClouds[i]->resetMap = mb;
+//    MenuCheckbox* mc;
+//    mc = new MenuCheckbox("Active", false);
+//    mc->setCallback(this);
+//    so->addMenuItem(mc);
+//    _pointClouds[i]->activeMap = mc;
+//    mc = new MenuCheckbox("Visible", true);
+//    mc->setCallback(this);
+//    so->addMenuItem(mc);
+//    _pointClouds[i]->visibleMap = mc;
+//    _pointClouds[i]->visible = true;
+//    float rValue = 0;
+//    min = -1;
+//    max = 1;
+//    MenuRangeValue* rt = new MenuRangeValue("rx", min, max, rValue);
+//    rt->setCallback(this);
+//    so->addMenuItem(rt);
+//    _pointClouds[i]->rxMap = rt;
+//    rt = new MenuRangeValue("ry", min, max, rValue);
+//    rt->setCallback(this);
+//    so->addMenuItem(rt);
+//    _pointClouds[i]->ryMap = rt;
+//    rt = new MenuRangeValue("rz", min, max, rValue);
+//    rt->setCallback(this);
+//    so->addMenuItem(rt);
+//    _pointClouds[i]->rzMap = rt;
+//    /*
+//            mc = new MenuCheckbox("Panel Visible",true);
+//            mc->setCallback(this);
+//            so->addMenuItem(mc);
+//     //           _query[q]->artifacts[inc]->model->pVisibleMap = mc;
+//               // _query[q]->artifacts[inc]->model->pVisible = true;
+//    */
+//    //Quat currentRot = _pointClouds[i]->rot;
+//    //Vec3 currentPos = _pointClouds[i]->pos;
+//    //Vec3 orig = currentPos;
+//    //cerr << "Pos: " << orig.x() << " " << orig.y() << " " << orig.z() << "\n";
+//    // so->setPosition(currentPos);
+//    so->setScale(1);
+//
+//    if (i == 0)
+//    {
+//        Vec3 currentPos = Vec3(0, 0, 0);
+//        float rotDegrees[3];
+//        rotDegrees[0] = 0;
+//        rotDegrees[1] = 0;
+//        rotDegrees[2] = 180;
+//        rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
+//        rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
+//        rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
+//        Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
+//        //so->setRotation(rot);
+//        //so->setPosition(currentPos);
+//    }
+//
+//    _pointClouds[i]->so = so;
+//    _pointClouds[i]->pos = so->getPosition();
+//    _pointClouds[i]->rot = so->getRotation();
+//    _pointClouds[i]->active = false;
+//    _pointClouds[i]->loaded = true;
+//}
+//
+//void KinectDemo::createSceneObject2()
+//{
+//    cerr << "Creating SceneObject for second kinect\n";
+//    PointCloud* newModel = new PointCloud();
+//    _pointClouds.push_back(newModel);
+//    string name = "test2";
+//    int i = _pointClouds.size() - 1;
+//
+//    if (i == -1) return;
+//
+//    // float currentScale = _pointClouds[i]->scale;
+//    float currentScale = 1;
+//    SceneObject* so;
+//    so = new SceneObject(name, false, false, false, true, false);
+//    osg::Switch* switchNode = new osg::Switch();
+//    so->addChild(switchNode);
+//    PluginHelper::registerSceneObject(so, "Test2");
+//    so->attachToScene();
+//    //Add currentNode to switchNode
+//    // _models3d[i]->currentModelNode = modelNode;
+//    cerr << "here2\n";
+//
+//    //  switchNode->addChild(kinectgrp);
+//    if (i == 1)
+//    {
+//        if (ConfigManager::getBool("Plugin.KinectDemo.ShowKinectModel"))
+//        {
+//            //Loads Kinect Obj file
+//            Matrixd scale;
+//            double snum = 1;
+//            scale.makeScale(snum, snum, snum);
+//            MatrixTransform* modelScaleTrans = new MatrixTransform();
+//            modelScaleTrans->setMatrix(scale);
+//            modelScaleTrans->addChild(_modelFileNode1);
+//            MatrixTransform* rotate = new osg::MatrixTransform();
+//            float rotDegrees[3];
+//            rotDegrees[0] = -90;
+//            rotDegrees[1] = 0;
+//            rotDegrees[2] = 180;
+//            rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
+//            rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
+//            rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
+//            Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
+//            Matrix rotMat;
+//            rotMat.makeRotate(rot);
+//            rotate->setMatrix(rotMat);
+//            rotate->addChild(modelScaleTrans);
+//            MatrixTransform* translate = new osg::MatrixTransform();
+//            osg::Matrixd tmat;
+//            Vec3 pos = Vec3(kinectX + 1000, kinectY, kinectZ);
+//            tmat.makeTranslate(pos);
+//            translate->setMatrix(tmat);
+//            translate->addChild(rotate);
+//            switchNode->addChild(translate);
+//        }
+//    }
+//
+//    _pointClouds[i]->switchNode = switchNode;
+//    //Add menu system
+//    so->setNavigationOn(true);
+//    so->setMovable(false);
+//    so->addMoveMenuItem();
+//    so->addNavigationMenuItem();
+//    float min = 0.0001;
+//    float max = 1;
+//    so->addScaleMenuItem("Scale", min, max, currentScale);
+//    SubMenu* sm = new SubMenu("Position");
+//    so->addMenuItem(sm);
+//    MenuButton* mb;
+//    mb = new MenuButton("Load");
+//    mb->setCallback(this);
+//    sm->addItem(mb);
+//    SubMenu* savemenu = new SubMenu("Save");
+//    sm->addItem(savemenu);
+//    mb = new MenuButton("Save");
+//    mb->setCallback(this);
+//    savemenu->addItem(mb);
+//    _pointClouds[i]->saveMap = mb;
+//    mb = new MenuButton("Save New Kml");
+//    mb->setCallback(this);
+//    savemenu->addItem(mb);
+//    _pointClouds[i]->saveNewMap = mb;
+//    mb = new MenuButton("Reset to Origin");
+//    mb->setCallback(this);
+//    so->addMenuItem(mb);
+//    _pointClouds[i]->resetMap = mb;
+//    MenuCheckbox* mc;
+//    mc = new MenuCheckbox("Active", false);
+//    mc->setCallback(this);
+//    so->addMenuItem(mc);
+//    _pointClouds[i]->activeMap = mc;
+//    mc = new MenuCheckbox("Visible", true);
+//    mc->setCallback(this);
+//    so->addMenuItem(mc);
+//    _pointClouds[i]->visibleMap = mc;
+//    _pointClouds[i]->visible = true;
+//    float rValue = 0;
+//    min = -1;
+//    max = 1;
+//    MenuRangeValue* rt = new MenuRangeValue("rx", min, max, rValue);
+//    rt->setCallback(this);
+//    so->addMenuItem(rt);
+//    _pointClouds[i]->rxMap = rt;
+//    rt = new MenuRangeValue("ry", min, max, rValue);
+//    rt->setCallback(this);
+//    so->addMenuItem(rt);
+//    _pointClouds[i]->ryMap = rt;
+//    rt = new MenuRangeValue("rz", min, max, rValue);
+//    rt->setCallback(this);
+//    so->addMenuItem(rt);
+//    _pointClouds[i]->rzMap = rt;
+//    so->setScale(1);
+//
+//    if (i == 1)
+//    {
+//        Vec3 currentPos = Vec3(0, 0, 0);
+//        float rotDegrees[3];
+//        rotDegrees[0] = 0;
+//        rotDegrees[1] = 0;
+//        rotDegrees[2] = 180;
+//        rotDegrees[0] = DegreesToRadians(rotDegrees[0]);
+//        rotDegrees[1] = DegreesToRadians(rotDegrees[1]);
+//        rotDegrees[2] = DegreesToRadians(rotDegrees[2]);
+//        Quat rot = osg::Quat(rotDegrees[0], osg::Vec3d(1, 0, 0), rotDegrees[1], osg::Vec3d(0, 1, 0), rotDegrees[2], osg::Vec3d(0, 0, 1));
+//        //so->setRotation(rot);
+//        //so->setPosition(currentPos);
+//    }
+//
+//    _pointClouds[i]->so = so;
+//    _pointClouds[i]->pos = so->getPosition();
+//    _pointClouds[i]->rot = so->getRotation();
+//    _pointClouds[i]->active = false;
+//    _pointClouds[i]->loaded = true;
+//}
 void KinectDemo::sendEvents()
 {
     cerr << "Sending Event\n";

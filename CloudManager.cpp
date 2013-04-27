@@ -32,10 +32,13 @@ CloudManager::CloudManager()
         vboP->setUsage(GL_STREAM_DRAW);
         tnodeGeom->setUseDisplayList(false);
         tnodeGeom->setUseVertexBufferObjects(true);
- 
+
         tnodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
     _firstRun = 0;
     _next = true;
+
+// precomputing colors for heat coloring
+    for (int i=0;i<10000;i++) getColorRGB(i);
 
 }
 
@@ -132,7 +135,7 @@ void CloudManager::run()
 int n = 0;
         while (true)
         {
-            
+
             if(!_next)
             {
              // printf("X");
@@ -140,14 +143,14 @@ int n = 0;
             else
             {
              // printf("O");
-            
+
             if (cloudT_socket != NULL)
             {
                         //printf("NotNull");
                 if (cloudT_socket->recv(*packet))
                 {
    if(true)
-   { 
+   {
                     float r, g, b, a;
     newVertices = new osg::Vec3Array;
     newNormals = new osg::Vec3Array;
@@ -181,9 +184,9 @@ int n = 0;
                     }
       }
       //n++;
-                } 
+                }
             }
-                 
+
                 _next = false;
                 _cacheDone = true;
             }
