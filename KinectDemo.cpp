@@ -315,7 +315,10 @@ void KinectDemo::preFrame()
     {
         if (kinects != NULL && kinects->size() > 0)
         {
-            kinects->at(0)->update();
+            for (int i = 0; i < kinects->size(); i++)
+            {
+                kinects->at(i)->update();
+            }
         }
     }
 
