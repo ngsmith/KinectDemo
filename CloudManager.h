@@ -45,23 +45,27 @@ public:
 
     virtual void run();
     void quit();
+    int firstRunStatus();
+    osg::ref_ptr<osg::Vec4Array> kinectColours;
+    osg::ref_ptr<osg::Vec3Array> kinectVertices;
+    osg::ref_ptr<osg::Vec3Array> kinectNormals;
+    osg::ref_ptr<osg::Geometry> tnodeGeom;
 protected:
 
-    // osg::ref_ptr<osg::Vec4Array> kinectColours;
-    // osg::ref_ptr<osg::Vec3Array> kinectVertices;
+    osg::ref_ptr<osg::Vec4Array> newColours;
+    osg::ref_ptr<osg::Vec3Array> newVertices;
+    osg::ref_ptr<osg::Vec3Array> newNormals;
     bool _cacheDone;
+    bool _next;
     bool useKColor;
+    bool pause;
     bool should_quit;
-    osg::Program* pgm1;
-    osg::Group* kinectgrp;
-    osg::MatrixTransform* _root;
-    float initialPointScale;
+    int _firstRun;
     int minDistHSV, maxDistHSV;
     int minDistHSVDepth, maxDistHSVDepth;
     std::unordered_map<float, osg::Vec4f> distanceColorMap;
     osg::Vec4f getColorRGB(int dist);
-    float distanceMIN, distanceMAX;
-    float _sphereRadius;
+    void processNewCloud();
 };
 
 //#endif

@@ -14,31 +14,29 @@ using namespace std;
 CloudManager::CloudManager()
 {
     useKColor = true;
+    pause = false;
     should_quit = false;
-    //initialPointScale = 0.001;
-    initialPointScale = ConfigManager::getFloat("Plugin.KinectDemo.KinectDefaultOn.KinectPointSize", 0.0f);
-    pgm1 = new osg::Program;
-    pgm1->setName("Sphere");
-    std::string shaderPath = ConfigManager::getEntry("Plugin.Points.ShaderPath");
-    pgm1->addShader(osg::Shader::readShaderFile(osg::Shader::VERTEX, osgDB::findDataFile(shaderPath + "/Sphere.vert")));
-    pgm1->addShader(osg::Shader::readShaderFile(osg::Shader::FRAGMENT, osgDB::findDataFile(shaderPath + "/Sphere.frag")));
-    pgm1->addShader(osg::Shader::readShaderFile(osg::Shader::GEOMETRY, osgDB::findDataFile(shaderPath + "/Sphere.geom")));
-    pgm1->setParameter(GL_GEOMETRY_VERTICES_OUT_EXT, 4);
-    pgm1->setParameter(GL_GEOMETRY_INPUT_TYPE_EXT, GL_POINTS);
-    pgm1->setParameter(GL_GEOMETRY_OUTPUT_TYPE_EXT, GL_TRIANGLE_STRIP);
     minDistHSV = 700;
     maxDistHSV = 5000;
-    kinectgrp = new osg::Group();
-    osg::StateSet* state = kinectgrp->getOrCreateStateSet();
-    state->setAttribute(pgm1);
-    state->addUniform(new osg::Uniform("pointScale", initialPointScale));
-    state->addUniform(new osg::Uniform("globalAlpha", 1.0f));
-    float pscale = 1.0;
-    osg::Uniform*  _scaleUni = new osg::Uniform("pointScale", 1.0f * pscale);
-    kinectgrp->getOrCreateStateSet()->addUniform(_scaleUni);
-    _root = new osg::MatrixTransform();
-    SceneManager::instance()->getObjectsRoot()->addChild(_root);
-    _root->addChild(kinectgrp);
+
+    kinectVertices = new osg::Vec3Array;
+    kinectNormals = new osg::Vec3Array;
+    kinectColours = new osg::Vec4Array;
+
+        tnodeGeom = new osg::Geometry();
+        osg::StateSet* state = tnodeGeom->getOrCreateStateSet();
+        state->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
+        float totalSize = 307200;
+        tnodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, totalSize));
+        osg::VertexBufferObject* vboP = tnodeGeom->getOrCreateVertexBufferObject();
+        vboP->setUsage(GL_STREAM_DRAW);
+        tnodeGeom->setUseDisplayList(false);
+        tnodeGeom->setUseVertexBufferObjects(true);
+ 
+        tnodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+    _firstRun = 0;
+    _next = true;
+
 }
 
 CloudManager::~CloudManager()
@@ -47,9 +45,12 @@ CloudManager::~CloudManager()
 
 bool CloudManager::isCacheDone()
 {
-    return _cacheDone;
+    return _next;
 }
-
+int CloudManager::firstRunStatus()
+{
+    return _firstRun;
+}
 void CloudManager::update()
 {
     static bool frameLoading = false;
@@ -57,6 +58,7 @@ void CloudManager::update()
 
     if (true)
     {
+/*
         if (cvr::ComController::instance()->isMaster())
         {
             cDone = _cacheDone;
@@ -77,18 +79,26 @@ void CloudManager::update()
             cvr::ComController::instance()->sendMaster(&cDone, sizeof(bool));
             cvr::ComController::instance()->readMaster(&cDone, sizeof(bool));
         }
-
+*/
+   cDone = _cacheDone;
+       // run();
+       /*
         if (!cDone)
         {
             //std::cerr << "Waiting for load to finish." << std::endl;
-            return;
+           // return;
         }
-
-        cvr::ComController::instance()->sync();
+*/
+       // cvr::ComController::instance()->sync();
         //Add not here?
-        return;
+            //kinectVertices = newVertices;
+            //kinectNormals = newNormals;
+            //kinectColours = newColours;
+   //     return;
+        _next = true;
+       // run();
     }
-
+/*
     if (cDone)
     {
         std::cerr << "Load Finished." << std::endl;
@@ -96,113 +106,148 @@ void CloudManager::update()
     }
     else
     {
-        //  std::cerr << "Waiting for GPU load finish." << std::endl;
+          std::cerr << "Waiting for GPU load finish." << std::endl;
     }
+*/
 }
 
 void CloudManager::run()
 {
     //Do functions
-    cerr << ".";
+  //  cerr << ".";
+     printf(".iS");
+    _cacheDone = false;
+    bool cDone = false;
 
-    if (kinectgrp != NULL)
+    if (true)
     {
+        //TODO:ZMQ does not want to be in init with the cloud socket-should only initialize this at the very beginning.
         zmq::context_t context2(1);
-        cloudT_socket = NULL;
         cloudT_socket = new SubSocket<RemoteKinect::PointCloud> (context2, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
         packet = new RemoteKinect::PointCloud();
 
-        while (!should_quit)
+//osg::Vec4Array* newColours;
+//osg::Vec3Array* newVertices;
+//osg::Vec3Array* newNormals;
+int n = 0;
+        while (true)
         {
-            //printf(".");
+            
+            if(!_next)
+            {
+             // printf("X");
+            }
+            else
+            {
+             // printf("O");
+            
             if (cloudT_socket != NULL)
             {
-                //        printf("NotNull");
+                        //printf("NotNull");
                 if (cloudT_socket->recv(*packet))
                 {
+   if(true)
+   { 
                     float r, g, b, a;
-                    osg::Vec3Array* kinectVertices = new osg::Vec3Array;
-                    //        kinectVertices->empty();
-                    osg::Vec3Array* normals = new osg::Vec3Array;
-                    osg::Vec4Array* kinectColours = new osg::Vec4Array;
+    newVertices = new osg::Vec3Array;
+    newNormals = new osg::Vec3Array;
+    newColours = new osg::Vec4Array;
 
-                    //      kinectColours->empty();
-                    //       cerr << ".";
-                    //int size = packet->points_size();
-                    //printf("Points %i\n",size);
                     if (true)
                     {
+                     // cerr << "Size:" << packet->points_size() << "\n";
                         for (int i = 0; i < packet->points_size(); i++)
                         {
-                            /*
-                                            osg::Vec3f ppos((packet->points(i).x() /  1000) + Skeleton::camPos.x(),
-                                                            (packet->points(i).z() / -1000) + Skeleton::camPos.y(),
-                                                            (packet->points(i).y() /  1000) + Skeleton::camPos.z());
-                            */
-                            osg::Vec3f ppos((packet->points(i).x() /  1000),
-                                            (packet->points(i).z() / -1000),
-                                            (packet->points(i).y() /  1000));
-                            kinectVertices->push_back(ppos);
+                            osg::Vec3f ppos((packet->points(i).x()),
+                                            (packet->points(i).z()),
+                                            (packet->points(i).y()));
+                            newVertices->push_back(ppos);
 
-                            //useKColor
                             if (useKColor)
                             {
                                 r = (packet->points(i).r() / 255.);
                                 g = (packet->points(i).g() / 255.);
                                 b = (packet->points(i).b() / 255.);
                                 a = 1;
-                                kinectColours->push_back(osg::Vec4f(r, g, b, a));
+                                newColours->push_back(osg::Vec4f(r, g, b, a));
                             }
                             else
                             {
-                                kinectColours->push_back(getColorRGB(packet->points(i).z()));
+                                newColours->push_back(getColorRGB(packet->points(i).z()));
                             }
                         }
-
-                        //cerr << kinectVertices->size();
-                        osg::Geode* kgeode = new osg::Geode();
-                        kgeode->setCullingActive(false);
-                        osg::Geometry* nodeGeom = new osg::Geometry();
-                        osg::StateSet* state = nodeGeom->getOrCreateStateSet();
-                        nodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, kinectVertices->size()));
-                        osg::VertexBufferObject* vboP = nodeGeom->getOrCreateVertexBufferObject();
-                        vboP->setUsage(GL_STREAM_DRAW);
-                        nodeGeom->setUseDisplayList(true);
-                        nodeGeom->setUseVertexBufferObjects(true);
-                        nodeGeom->setVertexArray(kinectVertices);
-                        nodeGeom->setColorArray(kinectColours);
-                        nodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-                        kgeode->addDrawable(nodeGeom);
-                        kgeode->dirtyBound();
-                        //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
-                        kinectgrp->removeChild(0, 1);
-                        kinectgrp->addChild(kgeode);
+          //            cerr << "Size=" << newVertices->size() << std::endl;
+            //            cerr << "O";
                     }
-                }
-
-                if (should_quit)
-                {
-                    pgm1->ref();
-                    kinectgrp->removeChild(0, 1);
-                    _root->removeChild(kinectgrp);
-                    kinectgrp = NULL;
-                }
+      }
+      //n++;
+                } 
             }
+                 
+                _next = false;
+                _cacheDone = true;
+            }
+       // if (cvr::ComController::instance()->isMaster())
+       // printf(".");
+        /*
+        if (cvr::ComController::instance()->isMaster())
+        {
+            cDone = _cacheDone;
+            int numSlaves = cvr::ComController::instance()->getNumSlaves();
+            bool sDone[numSlaves];
+            cvr::ComController::instance()->readSlaves(sDone, sizeof(bool));
+
+            for (int i = 0; i < numSlaves; i++)
+            {
+                cDone = cDone && sDone[i];
+            }
+
+            cvr::ComController::instance()->sendSlaves(&cDone, sizeof(bool));
+        }
+        else
+        {
+            cDone = _cacheDone;
+            cvr::ComController::instance()->sendMaster(&cDone, sizeof(bool));
+            cvr::ComController::instance()->readMaster(&cDone, sizeof(bool));
+        }
+        */
+        if(true)
+        {
+        //   cvr::ComController::instance()->sync();
+            kinectVertices = newVertices;
+            kinectNormals = newNormals;
+            kinectColours = newColours;
+//            tnodeGeom->setVertexArray(kinectVertices);
+  //          tnodeGeom->setColorArray(kinectColours);
+           if(_firstRun == 1)
+           {
+             _firstRun = 2;
+           }
+           else if (_firstRun == 0)
+           {
+           _firstRun = 1;
+           }
+           _cacheDone = false;
+           _next = true;
+        }
+
+
         }
     }
 
+    delete cloudT_socket;
+    cloudT_socket = NULL;
+
+    //This is the initial Function that runs any type of processing on Kinect PointCloud sets before overwriting old!
+    //processNewCloud();
+
     //When Finished
-    _cacheDone = true;
     std::cerr << "All frames loaded." << std::endl;
 }
 
 void  CloudManager::quit()
 {
     should_quit = true;
-    //   pgm1->ref();
-    //   kinectgrp->removeChild(0, 1);
-    //   _root->removeChild(kinectgrp);
-    //   kinectgrp = NULL;
 }
 
 osg::Vec4f CloudManager::getColorRGB(int dist)
@@ -216,4 +261,9 @@ osg::Vec4f CloudManager::getColorRGB(int dist)
     }
 
     return distanceColorMap[dist];
+}
+void CloudManager::processNewCloud()
+{
+  //Here is where we could run ICP or do checking against original cloud.
+
 }

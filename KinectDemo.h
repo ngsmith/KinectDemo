@@ -94,6 +94,7 @@ public:
     bool kShowColor;
     bool kShowPCloud;
     bool kinectThreaded;
+    bool _firstRun;
     bool skeletonThreaded;
     bool kNavSpheres;
     bool kShowDepth;
@@ -102,7 +103,8 @@ public:
     bool kShowArtifactPanel;
     bool kShowInfoPanel;
     osg::Program* pgm1;
-    osg::Group* kinectgrp;
+    osg::ref_ptr<osg::Group> kinectgrp;
+    osg::Geometry* knodeGeom;
     //    osg::Geometry* kinectGeom;
     //    osg::DrawArrays* kinectDrawArrays;
     osg::Group* kinectgrp2;
@@ -297,10 +299,6 @@ protected:
     float kinectRY;
     float kinectRZ;
     float kinectRW;
-    float kinect2RX;
-    float kinect2RY;
-    float kinect2RZ;
-    float kinect2RW;
 
 };
 
