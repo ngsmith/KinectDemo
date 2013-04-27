@@ -307,70 +307,9 @@ void KinectDemo::preFrame()
 
     if (kinectThreaded)
     {
-        //Update KinectManager
-        //_cloudThread->update();
-        //osg::ref_ptr<osg::Vec3Array> testVert = _cloudThread->kinectVertices;
-        //cout << "Size=" << testVert->size() << "\n";
-        if (true)
-        {
-            if (_cloudThread->firstRunStatus() != 0)
-            {
-                float totalSize = 307200;
-
-                // kinectVertices = _cloudThread->kinectVertices;
-                // kinectColours = _cloudThread->kinectColours;
-                if (_cloudThread->kinectVertices != NULL)
-                {
-                    if (_cloudThread->kinectVertices->size() != 0)
-                    {
-                        if (_firstRun)
-                        {
-                            _firstRun = false;
-                            osg::Geode* kgeode = new osg::Geode();
-                            kgeode->setCullingActive(false);
-                            knodeGeom = new osg::Geometry();
-                            StateSet* state = knodeGeom->getOrCreateStateSet();
-                            state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-                            knodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, _cloudThread->kinectVertices.get()->size()));
-                            osg::VertexBufferObject* vboP = knodeGeom->getOrCreateVertexBufferObject();
-                            //vboP->setUsage(GL_STREAM_DRAW);
-                            vboP->setUsage(GL_DYNAMIC_DRAW);
-                            //vboP->setUsage(GL_STATIC_DRAW);
-                            knodeGeom->setUseDisplayList(false);
-                            knodeGeom->setUseVertexBufferObjects(true);
-                            kinectVertices = new Vec3Array;
-                            kinectColours = new Vec4Array;
-                            //      X[i] = x;
-                            //    Y[i] = y;
-                            //  Z[i] = z;
-                            osg::Vec3 ppos(Skeleton::camPos.x(),
-                                           Skeleton::camPos.y(),
-                                           Skeleton::camPos.z());
-                            kinectVertices->push_back(ppos);
-                            kinectColours->push_back(osg::Vec4f(1, 1, 1, 1));
-                            //knodeGeom->setVertexArray(kinectVertices);
-                            //knodeGeom->setColorArray(kinectColours);
-                            knodeGeom->setVertexArray(_cloudThread->kinectVertices.get());
-                            knodeGeom->setColorArray(_cloudThread->kinectColours.get());
-                            knodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-                            kgeode->addDrawable(knodeGeom);
-                            //kgeode->addDrawable(_cloudThread->tnodeGeom.get());
-                            // kgeode->dirtyBound();
-                            //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
-                            kinectgrp->removeChild(0, 1);
-                            kinectgrp->addChild(kgeode);
-                            //printf("Made it\n");
-                        }
-                        else
-                        {
-                            //printf("Made it\n");
-                            knodeGeom->setVertexArray(_cloudThread->kinectVertices.get());
-                            knodeGeom->setColorArray(_cloudThread->kinectColours.get());
-                        }
-                    }
-                }
-            }
-        }
+        ///XXXKO
+        if (kinects!=NULL && kinects->size()>0)
+            kinects->at(0)->update();
     }
     else
     {
@@ -672,6 +611,7 @@ void KinectDemo::kinectInit()
     filterBackground = false;
     assignPointsToSkeletons = false;
     classifyPoints = false;
+    kinects=NULL;
 
     if (true)
     {
@@ -799,19 +739,7 @@ void KinectDemo::kinectInit()
         // precompute packed values for colors on depthmap
         for (int i = 0; i < 15000; i++)
         {
-            // XXX
-            //
-            // TODO SEE IF THERE IS RED/BLUE MAP ONCE CONVERTING TO MM
-            // TODO ADD MORE POINTS SEE IF LOOKS BETTER
-            // TODO CHECK IF O3 MAKES A DIFFERENCE
-            //
-            // XXX
             //http://graphics.stanford.edu/~mdfisher/Kinect.html
-            //     float valf = 0;
-            //     if (i < 2047) { valf = float(1000.0 / (double(i) * -0.0030711016 + 3.3309495161));  }
-            //     int val = valf;
-            //int val = float(1000.0 / (double(i) * -0.0030711016 + 3.3309495161)); // kinect data to milimeters
-            //cout << val << " ";
             osg::Vec4 color = getColorRGBDepth(i);
             char rrr = (char)((float)color.r() * 255.0);
             char ggg = (char)((float)color.g() * 255.0);
@@ -1342,19 +1270,12 @@ void KinectDemo::cloudOn()
         }
         else
         {
-            cout << "Starting Thread\n";
-            _cloudThread = new CloudManager();
-            cout << "Started\n";
-            _cloudThread->start();
-            kinectgrp = new osg::Group();
-            osg::StateSet* state = kinectgrp->getOrCreateStateSet();
-            state->setAttribute(pgm1);
-            state->addUniform(new osg::Uniform("pointScale", initialPointScale));
-            state->addUniform(new osg::Uniform("globalAlpha", 1.0f));
-            float pscale = initialPointScale;
-            osg::Uniform*  _scaleUni = new osg::Uniform("pointScale", 1.0f * pscale);
-            kinectgrp->getOrCreateStateSet()->addUniform(_scaleUni);
-            _pointClouds[0]->switchNode->addChild(kinectgrp);
+            kinects = new std::vector<KinectObject*>();
+            KinectObject* kinect = new KinectObject();
+            kinect->cloudOn();
+            kinects->push_back(kinect);
+
+            // XXKO cloudon
         }
     }
 }

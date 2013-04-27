@@ -31,8 +31,10 @@
 #include "kUtils.h"
 #include "SelectableItem.h"
 #include "CloudManager.h"
+#include "KinectObject.h"
 //#include "SkeletonManager.h"
 #include <unordered_map>
+
 using namespace std;
 using namespace osg;
 using namespace cvr;
@@ -111,6 +113,8 @@ public:
     //    osg::Geometry* kinectgeo2;
     //    osg::DrawArrays* kinectDrawArrays2;
     float initialPointScale;
+
+    std::vector<KinectObject*>* kinects;
 
     struct PointCloud
     {

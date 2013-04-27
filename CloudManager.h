@@ -1,5 +1,5 @@
-//#ifndef _ANIMATION_MANAGER_MULT
-//#define _ANIMATION_MANAGER_MULT
+#ifndef _ANIMATION_MANAGER_MULT
+#define _ANIMATION_MANAGER_MULT
 
 #include <osgDB/ReadFile>
 #include <osgDB/FileUtils>
@@ -20,7 +20,6 @@
 #include "kUtils.h"
 //#include "Skeleton.h"
 #include <unordered_map>
-
 
 #include <iostream>
 #include <string>
@@ -68,4 +67,4 @@ protected:
     void processNewCloud();
 };
 
-//#endif
+#endif

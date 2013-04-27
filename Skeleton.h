@@ -1,3 +1,5 @@
+#ifndef _SKEL_LOADED
+#define _SKEL_LOADED
 
 #include "MCylinder.h"
 #include <osg/ShapeDrawable>
@@ -65,3 +67,4 @@ struct Skeleton
     void detach(osg::Switch* parent);
 };
 
+#endif
