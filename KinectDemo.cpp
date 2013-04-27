@@ -314,10 +314,10 @@ void KinectDemo::preFrame()
       if(true)
       {
        if(_cloudThread->firstRunStatus() != 0)
-       {  
+       {
 
             float totalSize = 307200;
-        
+
        // kinectVertices = _cloudThread->kinectVertices;
        // kinectColours = _cloudThread->kinectColours;
         if(_cloudThread->kinectVertices != NULL)
@@ -329,7 +329,7 @@ void KinectDemo::preFrame()
              _firstRun = false;
         osg::Geode* kgeode = new osg::Geode();
         kgeode->setCullingActive(false);
-        
+
         knodeGeom = new osg::Geometry();
         StateSet* state = knodeGeom->getOrCreateStateSet();
         state->setMode(GL_LIGHTING, StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
@@ -345,7 +345,7 @@ void KinectDemo::preFrame()
       //      X[i] = x;
         //    Y[i] = y;
           //  Z[i] = z;
-          
+
             osg::Vec3 ppos(Skeleton::camPos.x(),
                           Skeleton::camPos.y(),
                           Skeleton::camPos.z());
@@ -357,24 +357,24 @@ void KinectDemo::preFrame()
         knodeGeom->setVertexArray(_cloudThread->kinectVertices.get());
         knodeGeom->setColorArray(_cloudThread->kinectColours.get());
         knodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-         
+
         kgeode->addDrawable(knodeGeom);
         //kgeode->addDrawable(_cloudThread->tnodeGeom.get());
        // kgeode->dirtyBound();
         //if (kinectgrp != NULL) _root->removeChild(kinectgrp);
         kinectgrp->removeChild(0, 1);
         kinectgrp->addChild(kgeode);
-        //printf("Made it\n"); 
+        //printf("Made it\n");
          }
          else
          {
-        //printf("Made it\n"); 
+        //printf("Made it\n");
         knodeGeom->setVertexArray(_cloudThread->kinectVertices.get());
         knodeGeom->setColorArray(_cloudThread->kinectColours.get());
          }
         }
        }
-  
+
     }
      }
     }
@@ -697,13 +697,20 @@ void KinectDemo::kinectInit()
     }
 
     //Get KinectSkeleton Offset
-    kinectX = ConfigManager::getFloat("x", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectY = ConfigManager::getFloat("y", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectZ = ConfigManager::getFloat("z", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectRX = ConfigManager::getFloat("rx", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectRY = ConfigManager::getFloat("ry", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectRZ = ConfigManager::getFloat("rz", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
-    kinectRW = ConfigManager::getFloat("rw", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinect2X =  kinectX = ConfigManager::getFloat("x", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinect2Y =  kinectY = ConfigManager::getFloat("y", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinect2Z =  kinectZ = ConfigManager::getFloat("z", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinect2RX =  kinectRX = ConfigManager::getFloat("rx", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinect2RY =  kinectRY = ConfigManager::getFloat("ry", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinect2RZ =  kinectRZ = ConfigManager::getFloat("rz", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinect2RW =  kinectRW = ConfigManager::getFloat("rw", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinectX = ConfigManager::getFloat("x", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinectY = ConfigManager::getFloat("y", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinectZ = ConfigManager::getFloat("z", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinectRX = ConfigManager::getFloat("rx", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinectRY = ConfigManager::getFloat("ry", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinectRZ = ConfigManager::getFloat("rz", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+        kinectRW = ConfigManager::getFloat("rw", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
     //Show info Panel
     kShowInfoPanel = ConfigManager::getBool("Plugin.KinectDemo.KinectDefaultOn.ShowInfoPanel");
 
@@ -720,13 +727,13 @@ void KinectDemo::kinectInit()
         sliderZ = new MenuRangeValue("Z", -1000.0, 1000.0, kinectZ, 0.01);
         sliderZ->setCallback(this);
         _infoPanel->addMenuItem(sliderZ);
-        slider2X = new MenuRangeValue("X-2", -1000.0, 1000.0, kinectX, 0.01);
+        slider2X = new MenuRangeValue("X-2", -1000.0, 1000.0, kinect2X, 0.01);
         slider2X->setCallback(this);
         _infoPanel->addMenuItem(slider2X);
-        slider2Y = new MenuRangeValue("Y-2", -1000.0, 1000.0, kinectY, 0.01);
+        slider2Y = new MenuRangeValue("Y-2", -1000.0, 1000.0, kinect2Y, 0.01);
         slider2Y->setCallback(this);
         _infoPanel->addMenuItem(slider2Y);
-        slider2Z = new MenuRangeValue("Z-2", -1000.0, 1000.0, kinectZ, 0.01);
+        slider2Z = new MenuRangeValue("Z-2", -1000.0, 1000.0, kinect2Z, 0.01);
         slider2Z->setCallback(this);
         _infoPanel->addMenuItem(slider2Z);
         /*

@@ -299,6 +299,10 @@ protected:
     float kinectRY;
     float kinectRZ;
     float kinectRW;
+    float kinect2RX;
+    float kinect2RY;
+    float kinect2RZ;
+    float kinect2RW;
 
 };
 
