@@ -1255,9 +1255,20 @@ void KinectDemo::cloudOn()
         //       }
         //       else
         //       {
+        if(kinects->size() == 0)
+        {
         KinectObject* kinect = new KinectObject();
         kinect->cloudOn();
         kinects->push_back(kinect);
+        }
+        else
+        {
+          
+	    for (int i = 0; i < kinects->size(); i++)
+	    {
+		kinects->at(i)->cloudOn();
+	    }
+        }
         //      }
     }
 }

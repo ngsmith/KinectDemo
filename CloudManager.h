@@ -51,6 +51,7 @@ public:
     osg::ref_ptr<osg::Geometry> tnodeGeom;
 
     bool useKColor;
+    bool should_quit;
 protected:
 
     osg::ref_ptr<osg::Vec4Array> newColours;
@@ -59,7 +60,6 @@ protected:
     bool _cacheDone;
     bool _next;
     bool pause;
-    bool should_quit;
     int _firstRun;
     int minDistHSV, maxDistHSV;
     int minDistHSVDepth, maxDistHSVDepth;

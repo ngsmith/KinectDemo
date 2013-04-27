@@ -23,17 +23,6 @@ CloudManager::CloudManager()
     kinectNormals = new osg::Vec3Array;
     kinectColours = new osg::Vec4Array;
 
-        tnodeGeom = new osg::Geometry();
-        osg::StateSet* state = tnodeGeom->getOrCreateStateSet();
-        state->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-        float totalSize = 307200;
-        tnodeGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, totalSize));
-        osg::VertexBufferObject* vboP = tnodeGeom->getOrCreateVertexBufferObject();
-        vboP->setUsage(GL_STREAM_DRAW);
-        tnodeGeom->setUseDisplayList(false);
-        tnodeGeom->setUseVertexBufferObjects(true);
-
-        tnodeGeom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
     _firstRun = 0;
     _next = true;
 
@@ -59,8 +48,6 @@ void CloudManager::update()
     static bool frameLoading = false;
     bool cDone;
 
-    if (true)
-    {
 /*
         if (cvr::ComController::instance()->isMaster())
         {
@@ -82,16 +69,16 @@ void CloudManager::update()
             cvr::ComController::instance()->sendMaster(&cDone, sizeof(bool));
             cvr::ComController::instance()->readMaster(&cDone, sizeof(bool));
         }
-*/
+
    cDone = _cacheDone;
        // run();
-       /*
+       
         if (!cDone)
         {
             //std::cerr << "Waiting for load to finish." << std::endl;
            // return;
         }
-*/
+
        // cvr::ComController::instance()->sync();
         //Add not here?
             //kinectVertices = newVertices;
@@ -101,7 +88,7 @@ void CloudManager::update()
         _next = true;
        // run();
     }
-/*
+
     if (cDone)
     {
         std::cerr << "Load Finished." << std::endl;
@@ -117,8 +104,6 @@ void CloudManager::update()
 void CloudManager::run()
 {
     //Do functions
-  //  cerr << ".";
-     printf(".iS");
     _cacheDone = false;
     bool cDone = false;
 
@@ -129,11 +114,7 @@ void CloudManager::run()
         cloudT_socket = new SubSocket<RemoteKinect::PointCloud> (context2, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
         packet = new RemoteKinect::PointCloud();
 
-//osg::Vec4Array* newColours;
-//osg::Vec3Array* newVertices;
-//osg::Vec3Array* newNormals;
-int n = 0;
-        while (true)
+        while (!should_quit)
         {
 
             if(!_next)
@@ -158,7 +139,7 @@ int n = 0;
 
                     if (true)
                     {
-                     // cerr << "Size:" << packet->points_size() << "\n";
+                      //cerr << "Size:" << packet->points_size() << "\n";
                         for (int i = 0; i < packet->points_size(); i++)
                         {
                             osg::Vec3f ppos((packet->points(i).x()),
@@ -179,11 +160,8 @@ int n = 0;
                                 newColours->push_back(getColorRGB(packet->points(i).z()));
                             }
                         }
-          //            cerr << "Size=" << newVertices->size() << std::endl;
-            //            cerr << "O";
                     }
       }
-      //n++;
                 }
             }
 
@@ -220,8 +198,6 @@ int n = 0;
             kinectVertices = newVertices;
             kinectNormals = newNormals;
             kinectColours = newColours;
-//            tnodeGeom->setVertexArray(kinectVertices);
-  //          tnodeGeom->setColorArray(kinectColours);
            if(_firstRun == 1)
            {
              _firstRun = 2;

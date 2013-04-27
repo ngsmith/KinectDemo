@@ -26,6 +26,8 @@ KinectObject::KinectObject()
 
 void KinectObject::cloudOn()
 {
+  if(_firstRun)
+  {
     cout << "Starting Thread\n";
     cm = new CloudManager();
     cout << "Started\n";
@@ -131,24 +133,27 @@ void KinectObject::cloudOn()
      rt->setCallback(this);
      so->addMenuItem(rt);
      _pointClouds[i]->rzMap = rt;*/
+  }
+  else
+  {
+    cerr << "Restarting\n";
+    _firstRun = true;
+    cm->should_quit = false;
+    cm->start();
+    _cloudIsOn = true;
+  }
 }
 
 void KinectObject::update()
 {
     if (_cloudIsOn == false) return;
 
-    //Update KinectManager
-    //_cloudThread->update();
-    //osg::ref_ptr<osg::Vec3Array> testVert = _cloudThread->kinectVertices;
-    //cout << "Size=" << testVert->size() << "\n";
     if (true)
     {
         if (cm->firstRunStatus() != 0)
         {
             float totalSize = 307200;
 
-            // kinectVertices = _cloudThread->kinectVertices;
-            // kinectColours = _cloudThread->kinectColours;
             if (cm->kinectVertices != NULL)
             {
                 if (cm->kinectVertices->size() != 0)
@@ -170,9 +175,6 @@ void KinectObject::update()
                         geom->setUseVertexBufferObjects(true);
                         kinectVertices = new Vec3Array;
                         kinectColours = new Vec4Array;
-                        //      X[i] = x;
-                        //    Y[i] = y;
-                        //  Z[i] = z;
                         osg::Vec3 ppos(Skeleton::camPos.x(),
                                        Skeleton::camPos.y(),
                                        Skeleton::camPos.z());
@@ -205,5 +207,11 @@ void KinectObject::update()
 
 void KinectObject::cloudOff()
 {
+ if(cm != NULL)
+ {
+    _cloudIsOn = false;
+    cm->quit();
+    group->removeChild(0, 1);
+ } 
 }
 
