@@ -2,13 +2,17 @@
 #include <osg/PolygonMode>
 #include <cvrConfig/ConfigManager.h>
 #include <cvrKernel/SceneObject.h>
+#include <cvrMenu/MenuButton.h>
+#include <cvrMenu/MenuCheckbox.h>
+#include <cvrMenu/MenuRangeValue.h>
+#include <cvrMenu/MenuCheckbox.h>
 #include "Skeleton.h"
 #include <cvrKernel/PluginHelper.h>
 
-class KinectObject
+class KinectObject : public cvr::SceneObject
 {
 public:
-    KinectObject(std::string server);
+    KinectObject(std::string name, std::string server);
     CloudManager* cm;
     osg::Group* group;
     osg::Geometry* geom;

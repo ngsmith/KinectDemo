@@ -1259,13 +1259,19 @@ void KinectDemo::cloudOn()
         {
         //Test Kinect1
         string server = ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud");
-        KinectObject* kinect = new KinectObject(server);
+        string name = "testobject";
+        KinectObject* kinect = new KinectObject(name,server);
         kinect->cloudOn();
+        PluginHelper::registerSceneObject(kinect, name);
+        kinect->attachToScene();
         kinects->push_back(kinect);
         //Test Kinect2
         server = ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud2");
-        kinect = new KinectObject(server);
+        name = "testobject2";
+        kinect = new KinectObject(name,server);
         kinect->cloudOn();
+        PluginHelper::registerSceneObject(kinect, name);
+        kinect->attachToScene();
         kinects->push_back(kinect);
         }
         else

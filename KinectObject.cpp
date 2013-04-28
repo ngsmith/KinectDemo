@@ -4,7 +4,7 @@ using namespace cvr;
 using namespace std;
 using namespace osg;
 
-KinectObject::KinectObject(std::string server)
+KinectObject::KinectObject(std::string name, std::string server) : SceneObject(name,false,false,false,true,false)
 {
     // load sphere shader
     pgm1 = new osg::Program;
@@ -42,10 +42,10 @@ void KinectObject::cloudOn()
     osg::Uniform*  _scaleUni = new osg::Uniform("pointScale", 1.0f * pscale);
     group->getOrCreateStateSet()->addUniform(_scaleUni);
     switchNode = new osg::Switch();
-    SceneObject* so = new SceneObject("testobject", false, false, false, true, false);
-    so->addChild(switchNode);
-    PluginHelper::registerSceneObject(so, "testobject");
-    so->attachToScene();
+    //SceneObject* so = new SceneObject("testobject", false, false, false, true, false);
+    addChild(switchNode);
+//    PluginHelper::registerSceneObject(so, "testobject");
+//    so->attachToScene();
     switchNode->addChild(group);
     _cloudIsOn = true;
 
@@ -82,10 +82,10 @@ void KinectObject::cloudOn()
         switchNode->addChild(translate);
     }
 
-    so->setNavigationOn(true);
-    so->setMovable(false);
-    so->addMoveMenuItem();
-    so->addNavigationMenuItem();
+    setNavigationOn(true);
+    setMovable(false);
+    addMoveMenuItem();
+    addNavigationMenuItem();
     /* float min = 0.0001;
      float max = 1;
      so->addScaleMenuItem("Scale", min, max, currentScale);
