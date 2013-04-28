@@ -8,7 +8,7 @@
 class KinectObject
 {
 public:
-    KinectObject();
+    KinectObject(std::string server);
     CloudManager* cm;
     osg::Group* group;
     osg::Geometry* geom;
@@ -22,6 +22,7 @@ public:
     float kinectX;
     float kinectY;
     float kinectZ;
+    std::string kinectServer;
 
     osg::ref_ptr<osg::Vec4Array> kinectColours;
     osg::ref_ptr<osg::Vec3Array> kinectVertices;

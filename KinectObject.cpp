@@ -4,7 +4,7 @@ using namespace cvr;
 using namespace std;
 using namespace osg;
 
-KinectObject::KinectObject()
+KinectObject::KinectObject(std::string server)
 {
     // load sphere shader
     pgm1 = new osg::Program;
@@ -22,6 +22,7 @@ KinectObject::KinectObject()
     kinectX = ConfigManager::getFloat("x", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
     kinectY = ConfigManager::getFloat("y", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
     kinectZ = ConfigManager::getFloat("z", "Plugin.KinectDemo.KinectSkeleton", 0.0f);
+    kinectServer = server;
 }
 
 void KinectObject::cloudOn()
@@ -29,7 +30,7 @@ void KinectObject::cloudOn()
   if(_firstRun)
   {
     cout << "Starting Thread\n";
-    cm = new CloudManager();
+    cm = new CloudManager(kinectServer);
     cout << "Started\n";
     cm->start();
     group = new osg::Group();

@@ -11,7 +11,7 @@
 using namespace cvr;
 using namespace std;
 
-CloudManager::CloudManager()
+CloudManager::CloudManager(std::string server)
 {
     useKColor = true;
     pause = false;
@@ -25,7 +25,7 @@ CloudManager::CloudManager()
 
     _firstRun = 0;
     _next = true;
-
+    kinectServer = server;
 // precomputing colors for heat coloring
     for (int i=0;i<10000;i++) getColorRGB(i);
 
@@ -111,7 +111,8 @@ void CloudManager::run()
     {
         //TODO:ZMQ does not want to be in init with the cloud socket-should only initialize this at the very beginning.
         zmq::context_t context2(1);
-        cloudT_socket = new SubSocket<RemoteKinect::PointCloud> (context2, ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud"));
+        
+        cloudT_socket = new SubSocket<RemoteKinect::PointCloud> (context2, kinectServer);
         packet = new RemoteKinect::PointCloud();
 
         while (!should_quit)
@@ -163,6 +164,11 @@ void CloudManager::run()
                     }
       }
                 }
+                else
+                {
+
+                  //cerr << "PointCloud " << kinectServer << " Empty\n";
+                }
             }
 
                 _next = false;
@@ -196,8 +202,8 @@ void CloudManager::run()
         {
         //   cvr::ComController::instance()->sync();
             kinectVertices = newVertices;
-            kinectNormals = newNormals;
             kinectColours = newColours;
+            kinectNormals = newNormals;
            if(_firstRun == 1)
            {
              _firstRun = 2;

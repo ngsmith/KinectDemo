@@ -1257,7 +1257,14 @@ void KinectDemo::cloudOn()
         //       {
         if(kinects->size() == 0)
         {
-        KinectObject* kinect = new KinectObject();
+        //Test Kinect1
+        string server = ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud");
+        KinectObject* kinect = new KinectObject(server);
+        kinect->cloudOn();
+        kinects->push_back(kinect);
+        //Test Kinect2
+        server = ConfigManager::getEntry("Plugin.KinectDemo.KinectServer.PointCloud2");
+        kinect = new KinectObject(server);
         kinect->cloudOn();
         kinects->push_back(kinect);
         }

@@ -34,7 +34,7 @@ class CloudManager : public OpenThreads::Thread {
 
 public:
 
-    CloudManager();
+    CloudManager(std::string server);
     ~CloudManager();
     //contextCloud(1);
     SubSocket<RemoteKinect::PointCloud>* cloudT_socket;
@@ -66,6 +66,7 @@ protected:
     std::unordered_map<float, osg::Vec4f> distanceColorMap;
     osg::Vec4f getColorRGB(int dist);
     void processNewCloud();
+    std::string kinectServer;
 };
 
 #endif
